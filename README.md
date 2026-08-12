@@ -64,8 +64,7 @@ Requires Android Studio (AGP 8.9+) and the `android-36` SDK platform.
 ### Recommended setup (all optional, but each fixes a real OriginOS quirk)
 
 - **Battery → unrestricted**, so OriginOS doesn't kill the background caster to save power.
-- **Accessibility → "Origin Isle keep-alive"**, so the app runs with no status-bar icon (same
-  mechanism as a gesture-navigation app).
+- **Accessibility → "Origin Isle keep-alive"**, so the app runs with no status-bar icon.
 - **OriginOS auto-start allow-list** (Settings → Battery → Auto-start), or the caster gets killed
   when the screen turns off.
 
@@ -130,51 +129,6 @@ SHA-256: <run ./scripts/release.sh once and paste the printed fingerprint here>
 A build whose checksum or certificate fingerprint doesn't match is **not** an official build — do not
 install it. Never install an "Origin Isle" APK from anywhere other than this repo's Releases page.
 
-## How a card reaches the island
-
-`OriginIslandBuilder.grantScenes()` reflectively calls
-`NotificationManager.setSuperXInfosSceneList(...)` to whitelist this package for a set of scenes
-(only `NAVIGATION` is reliably granted on the devices this was tested on). Then the app posts an
-ordinary `Notification` under the tag `"VIVO_SUPERX_TAG"` whose `extras` bundle is built by
-`OriginIslandBuilder.buildBundle(...)` — hundreds of `notification.superx.*` / `island.superx.*` keys
-describing the card body, the collapsed pill, and the tiny status capsule. OriginOS recognises the
-tag + keys and renders the island instead of (or alongside) a normal shade notification. A card is
-HIGH-importance-channel, non-empty-content, `forceShow`-flagged and carries a content intent — miss
-any of those and vivo silently drops the post with no error. See
-[`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the distilled acceptance rules, and
-[`OriginIslandConstants.kt`](app/src/main/java/com/originisle/android/island/OriginIslandConstants.kt)
-for the full key dictionary.
-
-## Project layout
-
-```
-com.originisle.android/
-  MainActivity.kt, OriginIsleApp.kt      entry points
-  island/                                the SuperX protocol engine
-    OriginIslandConstants.kt               the full bundle-key dictionary (protocol reference)
-    OriginIslandBuilder.kt                 assembles the SuperX extras Bundle + grantScenes()
-    PlaygroundService.kt                   posts/updates/ends cards; owns the foreground-service fallback
-  service/                               background plumbing
-    NotificationCastListener.kt             decides cast-or-skip for every notification
-    KeepAliveAccessibilityService.kt        anchors the process with no status-bar icon
-    MediaControlReceiver.kt                 routes media-button taps back to the source app
-    IconCache.kt                            per-cast-id state shared by the pieces above
-  cards/                                 one poster per island card type
-    GenericCard.kt, MediaCard.kt, PaymentCard.kt, SportsCard.kt
-  sports/                                live-score parsing + crest fetching
-    SportsParser.kt, SportsFeed.kt
-  ui/                                    Compose UI (dark-only)
-    Theme.kt, OnboardingScreen.kt, CastTab.kt, AppsTab.kt, LogTab.kt, samples/
-  log/
-    CastLog.kt                             the in-app "why did/didn't this cast" log
-```
-
 ## License
 
-See [LICENSE](LICENSE) — a **source-available, no-redistribution** license (not open source). You may
-view the code and build it for your own personal use, but redistributing the source, or any build
-(forked, modified, or not), is not permitted. This exists specifically to stop third parties
-repackaging a notification-reading app under this project's name; the only trusted build is the one
-signed with the maintainer's key on this repo's Releases page. The vivo/OriginOS SuperX protocol
-itself is not this project's intellectual property — it's documented here for interoperability and
-educational purposes.
+See [LICENSE](LICENSE) — a **source-available, no-redistribution** license
