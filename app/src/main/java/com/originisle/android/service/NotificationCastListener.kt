@@ -3,6 +3,7 @@ package com.originisle.android.service
 import android.app.Notification
 import android.content.ComponentName
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.drawable.Icon
 import android.media.session.MediaController
 import android.media.session.MediaSession
@@ -124,14 +125,13 @@ class NotificationCastListener : NotificationListenerService() {
                 val prefs = getSharedPreferences(PREFS, 0)
                 val castNotifs = prefs.getBoolean("cast_notifications", false)
                 val castMedia = prefs.getBoolean("cast_media_sessions", false)
-                val ignoredMedia = prefs.getStringSet("cast_ignored_media_apps", emptySet()).orEmpty()
                 activeNotifications?.forEach { sbn ->
                     val extras = sbn.notification.extras
                     val token = extras.getParcelable(
                         NotificationCompat.EXTRA_MEDIA_SESSION, MediaSession.Token::class.java,
                     )
                     if (token != null) {
-                        if (castMedia && sbn.packageName !in ignoredMedia) {
+                        if (castMedia && isAppEnabled(prefs, sbn.packageName)) {
                             MediaCard.post(
                                 applicationContext, sbn,
                                 MediaController(this@NotificationCastListener, token),
@@ -167,6 +167,18 @@ class NotificationCastListener : NotificationListenerService() {
         if (instance === this) instance = null
         connectedAt = 0L
         pollHandler.removeCallbacks(pollRunnable)
+    }
+
+    /**
+     * The Apps tab's per-app switch is a single master kill switch — it must gate every card type
+     * (media sessions included), not just plain notifications. Checked once, up front, in
+     * [onNotificationPosted] and [pollRunnable] so a disabled app never casts anything.
+     */
+    private fun isAppEnabled(prefs: SharedPreferences, pkg: String): Boolean {
+        val ignored = prefs.getStringSet("cast_ignored_apps", emptySet()).orEmpty()
+        if (pkg in ignored) return false
+        val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
+        return enabledApps == null || pkg in enabledApps
     }
 
     /** Record a decision for the in-app Log screen (deduped: only when the outcome changes). */
@@ -208,6 +220,14 @@ class NotificationCastListener : NotificationListenerService() {
         // Skip framework/system notifications (USB-debug banner, system UI, etc.) — noise on the island.
         if (sbn.packageName in SYSTEM_PKGS) return
         val prefs = getSharedPreferences(PREFS, 0)
+
+        // Per-app exclusion: never cast apps the user explicitly turned off in the Apps tab, for
+        // ANY card type — this must run before the media-session branch below, not just the plain
+        // one, or a disabled app's media sessions (e.g. YouTube video playback) still slip through.
+        if (!isAppEnabled(prefs, sbn.packageName)) {
+            log(sbn, "skipped — app turned off in Apps tab", false); return
+        }
+
         val castNotifs = prefs.getBoolean("cast_notifications", false)
         val castMedia = prefs.getBoolean("cast_media_sessions", false)
         if (!castNotifs && !castMedia) { log(sbn, "skipped — casting is off", false); return }
@@ -223,28 +243,15 @@ class NotificationCastListener : NotificationListenerService() {
         // (some players, e.g. Firefox playing a video, omit it), fall back to matching an active
         // MediaSessionManager session by package name.
         if (castMedia && !isCall) {
-            val ignored = prefs.getStringSet("cast_ignored_media_apps", emptySet()).orEmpty()
-            if (sbn.packageName !in ignored) {
-                val controller = token?.let { MediaController(this, it) }
-                    ?: findMediaControllerFallback(sbn.packageName)
-                if (controller != null) {
-                    log(sbn, "cast — media player", true)
-                    MediaCard.post(applicationContext, sbn, controller)
-                    return
-                }
+            val controller = token?.let { MediaController(this, it) }
+                ?: findMediaControllerFallback(sbn.packageName)
+            if (controller != null) {
+                log(sbn, "cast — media player", true)
+                MediaCard.post(applicationContext, sbn, controller)
+                return
             }
         }
         if (!castNotifs) { log(sbn, "skipped — media only, notifications off", false); return }
-
-        // Per-app exclusion: never cast apps the user explicitly ignored.
-        val ignored = prefs.getStringSet("cast_ignored_apps", emptySet()).orEmpty()
-        if (sbn.packageName in ignored) { log(sbn, "skipped — app turned off in Apps tab", false); return }
-
-        // A null enabled-set means "all apps"; otherwise only the ones the user picked.
-        val enabledApps = prefs.getStringSet("cast_enabled_apps", null)
-        if (enabledApps != null && sbn.packageName !in enabledApps) {
-            log(sbn, "skipped — app not in allow-list", false); return
-        }
 
         // Score apps: if the notification parses as a match, post a football card with crests.
         // If it doesn't (Google also posts news/weather/etc.), fall through to the normal path.
