@@ -87,12 +87,48 @@ keyAlias=originisle
 keyPassword=...
 ```
 
-Then `./gradlew :app:assembleRelease`. Without `keystore.properties` present, `assembleRelease` still
-builds — just unsigned — so cloning this repo doesn't require anyone's private key.
+A `keystore.properties.template` is committed as a reference — copy it to `keystore.properties` and
+fill in the real values on the machine that holds your key. `keystore.properties`, `*.jks` and
+`*.keystore` are gitignored — never commit them, and keep a safe backup: losing the keystore or its
+passwords means you can never publish a signature-compatible update again.
+
+Then run the release helper from the repo root:
+
+```
+./scripts/release.sh
+```
+
+It builds `:app:assembleRelease`, verifies the signature, and writes the signed APK plus its SHA-256
+checksum to `dist/`, printing the signing certificate's fingerprint. Upload **both** the APK and the
+`.sha256` file to the GitHub Release. (Plain `./gradlew :app:assembleRelease` still works; without
+`keystore.properties` it builds *unsigned*, which is why the script refuses to run without it.)
 
 > Switching between a debug-signed and release-signed install requires uninstalling first (Android
 > rejects a signature mismatch), which also drops notification access and the keep-alive accessibility
 > grant — re-grant them after.
+
+### Verify a release is genuine
+
+This app reads your notifications, so only ever install a build you can prove came from the
+maintainer. Every official APK is signed with one private key and published on this repo's Releases
+page with its SHA-256 checksum. To check a downloaded APK:
+
+```
+# 1. checksum matches the one published on the release
+shasum -a 256 origin-isle-<version>.apk
+
+# 2. it was signed by the maintainer's key — compare against the fingerprint below
+apksigner verify --print-certs origin-isle-<version>.apk
+```
+
+Official signing certificate SHA-256 (fill in once, from `scripts/release.sh` output):
+
+```
+SHA-256: <run ./scripts/release.sh once and paste the printed fingerprint here>
+```
+
+A build whose checksum or certificate fingerprint doesn't match is **not** an official build — do not
+install it. Never install an "Origin Isle" APK from anywhere other than this repo's Releases page.
 
 ## How a card reaches the island
 
@@ -135,5 +171,10 @@ com.originisle.android/
 
 ## License
 
-See [LICENSE](LICENSE) (MIT). The vivo/OriginOS SuperX protocol itself is not this project's
-intellectual property — it's documented here for interoperability and educational purposes.
+See [LICENSE](LICENSE) — a **source-available, no-redistribution** license (not open source). You may
+view the code and build it for your own personal use, but redistributing the source, or any build
+(forked, modified, or not), is not permitted. This exists specifically to stop third parties
+repackaging a notification-reading app under this project's name; the only trusted build is the one
+signed with the maintainer's key on this repo's Releases page. The vivo/OriginOS SuperX protocol
+itself is not this project's intellectual property — it's documented here for interoperability and
+educational purposes.
