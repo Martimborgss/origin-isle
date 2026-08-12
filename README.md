@@ -1,19 +1,22 @@
-# Origin Isle — a notification caster for vivo OriginOS's OriginIsland
+# Origin Isle — a notification caster for OriginOS's OriginIsland
 
-Origin Isle mirrors your notifications onto the **vivo OriginOS SuperX / OriginIsland** pill
-(原子通知 — vivo's answer to Apple's Dynamic Island). Stock OriginOS only ever surfaces that pill for
-a short allow-list of Chinese apps; Origin Isle re-casts *any* notification through the same
+Origin Isle mirrors your notifications onto the **OriginOS SuperX / OriginIsland** pill. 
+Stock OriginOS only ever surfaces that pill fora short allow-list of Chinese apps; 
+Origin Isle re-casts *any* notification through the same
 protocol, so downloads, navigation, calls, media playback, payments and live football scores from
 ordinary (including European/international) apps show up on the island too.
 
-This is a hobby / reverse-engineering project, built by working out the SuperX protocol from a
-decompiled APK and re-implementing it from scratch. See **[the package-name caveat](#-read-this-first-the-package-name-is-load-bearing)**
-below before you build it — it matters.
+This is a hobby  project, built by working out the SuperX protocol. 
 
 ## Features
 
 - **Universal notification casting** — downloads, navigation turn-by-turn, calls, progress bars and
   (optionally) plain chat messages, each mapped onto the SuperX card template that fits it best.
+- **Per-app allow/deny list** (Apps tab) and a message-vs-call granularity switch (e.g. "WhatsApp
+  calls yes, texts no").
+- **Cast log + listener health** (Log tab) — every notification the listener saw, whether it was cast
+  or skipped and why, plus live connection status and a manual reconnect.
+- **Tapping a card opens the source app's notification**.
 - **Live football scores** with real club crests (fetched from TheSportsDB), an adaptive pill layout
   that shows a score under each crest when the island has room and a compact combined score when
   it's crowded, and taps that open the source score app.
@@ -22,21 +25,12 @@ below before you build it — it matters.
   and any other app whose notification pairs a payment verb with an amount.
 - **Media session casting** with prev/play-pause/next controls wired back to the source app.
 - **Calls show the caller's/app's own icon**, not a generic phone glyph.
-- **Tapping a card opens the source app's notification**, not Origin Isle.
-- **Per-app allow/deny list** (Apps tab) and a message-vs-call granularity switch (e.g. "WhatsApp
-  calls yes, texts no").
-- **Cast log + listener health** (Log tab) — every notification the listener saw, whether it was cast
-  or skipped and why, plus live connection status and a manual reconnect.
 - **"Recast all"** — sweeps every notification currently on the phone through the same cast pipeline
   in one tap.
 - **Runs with no status-bar icon.** OriginOS force-shows an icon for any foreground service; Origin
-  Isle instead anchors its background process with an inert `AccessibilityService` (reads nothing —
-  see [`KeepAliveAccessibilityService`](app/src/main/java/com/originisle/android/service/KeepAliveAccessibilityService.kt)),
+  Isle instead anchors its background process with an inert `AccessibilityService` 
+  (reads nothing — see [`KeepAliveAccessibilityService`](app/src/main/java/com/originisle/android/service/KeepAliveAccessibilityService.kt)),
   the same trick gesture-navigation apps use.
-- **First-run onboarding** that walks through every permission (notification access, POST_NOTIFICATIONS,
-  battery-unrestricted, keep-alive accessibility, OriginOS auto-start) and re-checks each one when you
-  come back from Settings.
-- Dark-mode only UI (no light variant).
 
 ## ⚠️ Read this first: the package name is load-bearing
 
@@ -49,9 +43,8 @@ package id to land on that whitelist. **If you change it, the island will stop w
 Two consequences:
 
 1. **It cannot be installed alongside the real AMap app** (same applicationId → package conflict).
-2. **This can never ship on the Play Store** or be distributed as if it were AMap. It's a personal,
-   educational sideload — install it on your own device, understand what you're installing, and don't
-   pass it off as something else.
+2. **This can never ship on the Play Store** or be distributed as if it were AMap. It's a personal sideload
+  install it on your own device, understand what you're installing.
 
 The Kotlin package / `R` namespace is a separate, harmless identifier: `com.originisle.android`. It's
 just where the code lives; it isn't checked by OriginOS.
@@ -101,7 +94,7 @@ builds — just unsigned — so cloning this repo doesn't require anyone's priva
 > rejects a signature mismatch), which also drops notification access and the keep-alive accessibility
 > grant — re-grant them after.
 
-## How a card reaches the island (the whole trick, in one paragraph)
+## How a card reaches the island
 
 `OriginIslandBuilder.grantScenes()` reflectively calls
 `NotificationManager.setSuperXInfosSceneList(...)` to whitelist this package for a set of scenes
