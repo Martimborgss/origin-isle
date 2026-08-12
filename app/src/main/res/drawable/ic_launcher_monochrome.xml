@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single-colour silhouette for themed (monochrome) icons: the island pill from the app icon,
+     with a small notification dot — deriving a clean silhouette from the full-colour artwork isn't
+     possible, so this is a simplified abstract mark instead. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#000000"
+        android:pathData="M30,44 h48 a10,10 0 0 1 10,10 v0 a10,10 0 0 1 -10,10 h-48 a10,10 0 0 1 -10,-10 v0 a10,10 0 0 1 10,-10 z" />
+    <path android:fillColor="#000000"
+        android:pathData="M78,42 m-6,0 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 z" />
+</vector>

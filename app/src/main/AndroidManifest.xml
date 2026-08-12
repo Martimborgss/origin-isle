@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".OriginIsleApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.OriginIsle">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Posts / updates / ends OriginIsland SuperX cards. Special-use FGS so it can
+             keep re-posting a live card (e.g. a ticking football score). -->
+        <service
+            android:name=".island.PlaygroundService"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="OriginIsland live update service" />
+        </service>
+
+        <!-- Listens to every notification on the device and re-casts eligible ones
+             (media, ongoing, progress) into the OriginIsland. -->
+        <service
+            android:name=".service.NotificationCastListener"
+            android:exported="true"
+            android:label="Origin Isle Notification Caster"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Keep-alive ONLY: an enabled AccessibilityService keeps the process alive without a
+             foreground-service notification (OriginOS force-shows FGS icons). Captures nothing;
+             canRetrieveWindowContent=false in the config. -->
+        <service
+            android:name=".service.KeepAliveAccessibilityService"
+            android:exported="true"
+            android:label="Origin Isle keep-alive"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/keepalive_accessibility_config" />
+        </service>
+
+        <!-- Routes media-button taps from a cast media card back to the source app. -->
+        <receiver
+            android:name=".service.MediaControlReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.originisle.android.MEDIA_PLAY_PAUSE" />
+                <action android:name="com.originisle.android.MEDIA_NEXT" />
+                <action android:name="com.originisle.android.MEDIA_PREV" />
+                <action android:name="com.originisle.android.MEDIA_SEEK" />
+                <action android:name="com.originisle.android.MEDIA_CUSTOM" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+</manifest>

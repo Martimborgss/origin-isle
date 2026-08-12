@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base app theme. Compose drives the UI; this only needs to be a Material3 theme
+         with no action bar so the Compose content owns the window.
+         Dark-only: Origin Isle has no light variant, so this uses the fixed Dark parent (not
+         DayNight) — the app stays dark regardless of the system's light/dark setting. -->
+    <style name="Theme.OriginIsle" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

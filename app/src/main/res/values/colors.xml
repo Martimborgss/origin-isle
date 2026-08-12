@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- vivo SuperX default progress colours, referenced by OriginIslandBuilder. -->
+    <color name="vivo_super_x_progress_bar_default_color">#ff3083f0</color>
+    <color name="vivo_super_x_progress_bar_bkg_default_color">#26000000</color>
+
+    <!-- Adaptive-icon background: sampled from logo.png's own card background, so the launcher
+         mask's edges blend with the artwork instead of showing a mismatched colour. -->
+    <color name="ic_launcher_background">#24282F</color>
+</resources>
