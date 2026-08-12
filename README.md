@@ -1,134 +1,136 @@
-# Origin Isle — a notification caster for OriginOS's OriginIsland
+# Origin Isle
 
-Origin Isle mirrors your notifications onto the **OriginOS SuperX / OriginIsland** pill. 
-Stock OriginOS only ever surfaces that pill fora short allow-list of Chinese apps; 
-Origin Isle re-casts *any* notification through the same
-protocol, so downloads, navigation, calls, media playback, payments and live football scores from
-ordinary (including European/international) apps show up on the island too.
+**Bring the OriginOS island to every app.**
 
-This is a hobby  project, built by working out the SuperX protocol. 
+If you own a vivo or iQOO phone with OriginOS, you've probably seen the little pill at the top of
+the screen — the one that shows a live timer for a taxi ride, a football score, or a music player.
+That's called **OriginIsland** (part of **SuperX**). The problem: out of the box, it only lights up
+for a short list of Chinese apps.
 
-## Features
+Origin Isle fixes that. It watches your notifications and re-casts them onto the same island, so
+downloads, turn-by-turn navigation, calls, payments, media playback and live football scores from
+your everyday apps — including European and international ones — show up there too.
 
-- **Universal notification casting** — downloads, navigation turn-by-turn, calls, progress bars and
-  (optionally) plain chat messages, each mapped onto the SuperX card template that fits it best.
-- **Per-app allow/deny list** (Apps tab) and a message-vs-call granularity switch (e.g. "WhatsApp
-  calls yes, texts no").
-- **Cast log + listener health** (Log tab) — every notification the listener saw, whether it was cast
-  or skipped and why, plus live connection status and a manual reconnect.
-- **Tapping a card opens the source app's notification**.
-- **Live football scores** with real club crests (fetched from TheSportsDB), an adaptive pill layout
-  that shows a score under each crest when the island has room and a compact combined score when
-  it's crowded, and taps that open the source score app.
-- **Apple-Pay-style payment cards** — a two-phase "Processing… → Paid ✓" animation (spinner, then a
-  green success tick and island glow) for Google Wallet/Pay, Revolut, PayPal, N26, Monzo, Starling,
-  and any other app whose notification pairs a payment verb with an amount.
-- **Media session casting** with prev/play-pause/next controls wired back to the source app.
-- **Calls show the caller's/app's own icon**, not a generic phone glyph.
-- **"Recast all"** — sweeps every notification currently on the phone through the same cast pipeline
-  in one tap.
-- **Runs with no status-bar icon.** OriginOS force-shows an icon for any foreground service; Origin
-  Isle instead anchors its background process with an inert `AccessibilityService` 
-  (reads nothing — see [`KeepAliveAccessibilityService`](app/src/main/java/com/originisle/android/service/KeepAliveAccessibilityService.kt)),
-  the same trick gesture-navigation apps use.
+This is a hobby project, not an official vivo/iQOO/OriginOS product.
 
-## ⚠️ Read this first: the package name is load-bearing
+## Screenshots
 
-`applicationId = "com.autonavi.minimap"` in [`app/build.gradle.kts`](app/build.gradle.kts) is
-**deliberate, not a mistake**. OriginOS only grants the hidden `setSuperXInfosSceneList` API to a
-short whitelist of packages, and this app's `applicationId` spoofs AMap's (高德地图 / AutoNavi) real
-package id to land on that whitelist. **If you change it, the island will stop working** —
-`grantScenes()` will start logging `setSuperXInfosSceneList unavailable`.
+| Cast tab | Apps tab (allow/deny list) | Log tab |
+| --- | --- | --- |
+| ![Cast tab](docs/screenshots/cast-tab.png) | ![Apps tab](docs/screenshots/apps-tab.png) | ![Log tab](docs/screenshots/log-tab.jpg) |
 
-Two consequences:
+The app UI above was captured on a plain Android emulator (no island to show there). Everything
+below is the real OriginIsland pill on an actual OriginOS phone:
 
-1. **It cannot be installed alongside the real AMap app** (same applicationId → package conflict).
-2. **This can never ship on the Play Store** or be distributed as if it were AMap. It's a personal sideload
-  install it on your own device, understand what you're installing.
+| Island — navigation | Island — payment | Island — call |
+| --- | --- | --- |
+| ![Navigation card on the island](docs/screenshots/island-navigation.jpg) | ![Payment card on the island](docs/screenshots/island-payment.jpg) | ![Call card on the island](docs/screenshots/island-call.jpg) |
 
-The Kotlin package / `R` namespace is a separate, harmless identifier: `com.originisle.android`. It's
-just where the code lives; it isn't checked by OriginOS.
+| Island — football score (compact) | Island — football score (both crests) |
+| --- | --- |
+| ![Compact football score on the island](docs/screenshots/island-football.jpg) | ![Football score with both team crests on the island](docs/screenshots/island-football-double.jpg) |
 
-## Build & run
+## What it does
 
-Requires Android Studio (AGP 8.9+) and the `android-36` SDK platform.
+- **Casts almost any notification** to the island — downloads, navigation, incoming calls, progress
+  bars, and (if you turn it on) regular chat messages — each shown as the card style that fits it
+  best.
+- **You choose which apps get to use it.** The Apps tab has a simple allow/deny list, plus a switch
+  per app for "calls yes, texts no" if that's what you want.
+- **A log you can check.** The Log tab shows every notification the app saw, whether it was cast to
+  the island or skipped (and why), plus whether the connection to OriginOS is currently healthy —
+  with a manual reconnect button if it isn't.
+- **Tap a card to jump straight to that notification** in the original app.
+- **Live football scores** with real team crests, laid out to fit whatever room is left on the
+  island.
+- **Apple-Pay-style payment cards** — a short "Processing… → Paid ✓" animation for Google Wallet/Pay,
+  Revolut, PayPal, N26, Monzo, Starling and similar apps.
+- **Media controls on the island** — previous/play-pause/next for whatever's playing, wired back to
+  the real app.
+- **Calls show the caller's own app icon**, not a generic phone symbol.
+- **"Recast all"** — one tap to push every notification currently on your phone through to the
+  island.
+- **No icon sits in your status bar.** OriginOS normally forces an icon for any app running a
+  background service; Origin Isle avoids that using the same trick some gesture-navigation apps use
+  (details in [docs/DEV.md](docs/DEV.md) if you're curious).
 
-1. **Open the folder in Android Studio** and let it sync.
-2. **Run** onto a vivo/iQOO OriginOS device. (It will build and install fine on any Android 14+
-   device, but the island itself only renders on OriginOS.)
-3. On first launch, the onboarding screen walks you through the permissions. Notification access is
-   the only mandatory one to continue; grant the rest for the best experience (see below).
-4. Try the sample cards in the **Cast** tab to confirm the island is working before relying on real
-   notifications.
+## Before you install: a few things to know
 
-### Recommended setup (all optional, but each fixes a real OriginOS quirk)
+- **This only works on vivo/iQOO phones running OriginOS.** It will install on other Android 14+
+  phones, but the island itself won't appear — there's nothing to cast to.
+- **It can't be installed alongside the real AMap (高德地图) app.** Origin Isle borrows AMap's
+  technical identity so OriginOS lets it use the island — that's also why the two apps can't be on
+  the same phone at once. See [docs/DEV.md](docs/DEV.md) for the full explanation.
+- **It reads your notifications**, so only install it from this repo's Releases page, and check the
+  checksum below before you do. Never install an "Origin Isle" APK from anywhere else.
+- **This isn't and never will be on the Play Store.** It's a personal sideload, shared here for
+  anyone who wants the same thing on their own phone.
 
-- **Battery → unrestricted**, so OriginOS doesn't kill the background caster to save power.
-- **Accessibility → "Origin Isle keep-alive"**, so the app runs with no status-bar icon.
-- **OriginOS auto-start allow-list** (Settings → Battery → Auto-start), or the caster gets killed
-  when the screen turns off.
+## Installing
 
-### Signed release build
+1. Go to this repo's **[Releases](https://github.com/fvhde/origin-isle/releases)** page and download the latest
+   `origin-isle-<version>.apk` **and** its matching `.sha256` file.
+2. **Check the checksum** (this confirms the file wasn't corrupted or swapped for something else):
+   - On a Mac or Linux computer, open Terminal in the download folder and run:
+     ```
+     shasum -a 256 origin-isle-<version>.apk
+     ```
+   - Compare the result to the contents of the `.sha256` file you downloaded — they should match
+     exactly.
+3. **On your phone**, allow installing apps from this source when prompted (Android will ask the
+   first time), then open the downloaded APK to install it.
+4. **Open Origin Isle.** The onboarding screen walks you through the permissions it needs.
+   Notification access is the only one that's required to continue — the rest are optional but make
+   things work better (see below).
+5. Try a sample card in the **Cast** tab first, to confirm the island lights up, before relying on
+   real notifications.
 
-The debug build works fine for personal use (SuperX doesn't care about the signing key). To build a
-release APK you can update over time:
+### A few settings worth turning on
 
-```
-keytool -genkeypair -v -keystore originisle-release.jks -alias originisle -keyalg RSA -keysize 2048 -validity 10000
-```
+These aren't required, but each one fixes a real OriginOS quirk:
 
-Create `keystore.properties` at the repo root (gitignored — never commit it):
+- **Battery → Unrestricted** for Origin Isle, so OriginOS doesn't kill it in the background to save
+  power.
+- **Accessibility → turn on "Origin Isle keep-alive"** — this is how the app runs without putting an
+  icon in your status bar.
+- **Settings → Battery → Auto-start → allow Origin Isle**, or it may get shut down whenever your
+  screen turns off.
 
-```
-storeFile=../originisle-release.jks
-storePassword=...
-keyAlias=originisle
-keyPassword=...
-```
+> If you ever switch from a version you built yourself (in Android Studio) to an official release
+> APK, or the other way around, Android will make you uninstall the old one first — the signatures
+> don't match. That also clears your notification-access and accessibility permissions, so just
+> re-grant them after reinstalling.
 
-A `keystore.properties.template` is committed as a reference — copy it to `keystore.properties` and
-fill in the real values on the machine that holds your key. `keystore.properties`, `*.jks` and
-`*.keystore` are gitignored — never commit them, and keep a safe backup: losing the keystore or its
-passwords means you can never publish a signature-compatible update again.
+## Verifying you have a genuine build
 
-Then run the release helper from the repo root:
-
-```
-./scripts/release.sh
-```
-
-It builds `:app:assembleRelease`, verifies the signature, and writes the signed APK plus its SHA-256
-checksum to `dist/`, printing the signing certificate's fingerprint. Upload **both** the APK and the
-`.sha256` file to the GitHub Release. (Plain `./gradlew :app:assembleRelease` still works; without
-`keystore.properties` it builds *unsigned*, which is why the script refuses to run without it.)
-
-> Switching between a debug-signed and release-signed install requires uninstalling first (Android
-> rejects a signature mismatch), which also drops notification access and the keep-alive accessibility
-> grant — re-grant them after.
-
-### Verify a release is genuine
-
-This app reads your notifications, so only ever install a build you can prove came from the
-maintainer. Every official APK is signed with one private key and published on this repo's Releases
-page with its SHA-256 checksum. To check a downloaded APK:
+Because this app reads your notifications, it's worth confirming a downloaded APK actually came from
+the maintainer rather than somewhere else. Every official release is signed with one private key that
+never leaves the maintainer's machine. Besides matching the checksum (above), you can check the
+signing certificate itself:
 
 ```
-# 1. checksum matches the one published on the release
-shasum -a 256 origin-isle-<version>.apk
-
-# 2. it was signed by the maintainer's key — compare against the fingerprint below
 apksigner verify --print-certs origin-isle-<version>.apk
 ```
 
-Official signing certificate SHA-256 (fill in once, from `scripts/release.sh` output):
+The output should show this fingerprint:
 
 ```
-SHA-256: <run ./scripts/release.sh once and paste the printed fingerprint here>
+SHA-256: 5D:2D:FA:7E:F6:A9:6B:95:4A:C2:43:61:A3:30:BA:9B:2C:EA:45:18:C5:B8:63:58:C9:F4:FF:B1:1D:79:E6:00
 ```
 
-A build whose checksum or certificate fingerprint doesn't match is **not** an official build — do not
-install it. Never install an "Origin Isle" APK from anywhere other than this repo's Releases page.
+(`apksigner` ships with the Android SDK build-tools — this check is really only practical if you
+already have Android tooling installed. The checksum comparison above is the check anyone can do.)
+
+If either the checksum or the certificate fingerprint doesn't match, **don't install the file** — it
+isn't an official build.
+
+## For developers
+
+Want to build it yourself, understand the AMap package-name spoof, or cut a signed release? See
+[docs/DEV.md](docs/DEV.md).
 
 ## License
 
-See [LICENSE](LICENSE) — a **source-available, no-redistribution** license
+See [LICENSE](LICENSE) — a **source-available, no-redistribution** license. In short: you can read
+the code and build it for your own devices, but you can't redistribute the source, modified versions,
+or any build of it (signed or not) to anyone else.
