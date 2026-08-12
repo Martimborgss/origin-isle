@@ -1,10 +1,8 @@
-# The vivo SuperX / OriginIsland protocol (as reverse-engineered by this project)
+# The SuperX / OriginIsland protocol
 
 This is a distilled reference for vivo OriginOS's "atomic notification" (原子通知) system, known
-internally as **SuperX**. It's the mechanism behind the OriginIsland pill (vivo's equivalent of
-Apple's Dynamic Island). Everything here was recovered by decompiling an APK that used the protocol
-and confirming behaviour by diffing what OriginOS actually accepted/rejected on a real device
-(vivo X200 Pro mini, OriginOS, Android 14/API 36).
+internally as **SuperX**. It's the mechanism behind the OriginIsland pill.
+Everything here was tested on vivo X200 Pro mini, OriginOS, Android 14/API 36.
 
 The full, verbatim bundle-key dictionary lives in
 [`OriginIslandConstants.kt`](../app/src/main/java/com/originisle/android/island/OriginIslandConstants.kt);
