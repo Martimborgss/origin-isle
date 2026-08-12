@@ -107,6 +107,14 @@ fun OnboardingScreen(context: Context, prefs: SharedPreferences, onDone: () -> U
             }
             item {
                 OnboardingRow(
+                    title = "Keep-alive (no status-bar icon)",
+                    description = "Runs in the background invisibly.",
+                    granted = accessOk,
+                    mandatory = false,
+                ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            }
+            item {
+                OnboardingRow(
                     title = "Battery unrestricted",
                     description = "Stops OriginOS from killing the background caster to save power.",
                     granted = batteryOk,
@@ -115,16 +123,8 @@ fun OnboardingScreen(context: Context, prefs: SharedPreferences, onDone: () -> U
             }
             item {
                 OnboardingRow(
-                    title = "Keep-alive (no status-bar icon)",
-                    description = "Runs in the background invisibly, the way a gesture app does.",
-                    granted = accessOk,
-                    mandatory = false,
-                ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-            }
-            item {
-                OnboardingRow(
                     title = "OriginOS auto-start",
-                    description = "vivo can't be checked automatically — enable it manually, then come back.",
+                    description = "vivo can't be checked automatically.",
                     granted = autoStartAck,
                     mandatory = false,
                 ) {

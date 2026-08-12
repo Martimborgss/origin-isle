@@ -93,7 +93,6 @@ class NotificationCastListener : NotificationListenerService() {
         private val PAYMENT_WORDS = listOf(
             "paid", "payment", "you sent", "you received", "charged", "purchase",
             "transaction", "debited", "credited", "receipt", "spent", "approved",
-            // a few common non-English forms
             "bezahlt", "payé", "reçu", "pago", "pagamento", "betaling",
         )
 
@@ -144,8 +143,6 @@ class NotificationCastListener : NotificationListenerService() {
                         onNotificationPosted(sbn) // refresh ticking chronometer
                     }
                 }
-                // Snap live football cards back to per-side scores when the island stops being
-                // crowded (e.g. the media player was stopped). No-op unless the crowding changed.
                 SportsCard.refresh(applicationContext)
             } catch (e: Exception) {
                 Log.e(TAG, "poll error", e)
@@ -158,7 +155,6 @@ class NotificationCastListener : NotificationListenerService() {
         super.onListenerConnected()
         instance = this
         connectedAt = System.currentTimeMillis()
-        // Keep the process alive so we keep receiving callbacks (OriginOS is aggressive about kills).
         if (getSharedPreferences(PREFS, 0).getBoolean("cast_notifications", false)) {
             runCatching { PlaygroundService.keepAlive(this) }
         }
@@ -316,8 +312,6 @@ class NotificationCastListener : NotificationListenerService() {
         val match = SportsParser.parse(title, text, big, sub) ?: return false
         val id = IconCache.castIdFor(sbn)
         val competition = sub.ifBlank { "Live" }
-        // Open the SOURCE score app on tap, not us — falls back to just launching it if the
-        // notification carries no content intent.
         val clickResp = sbn.notification.contentIntent ?: fallbackClickIntent(applicationContext, sbn.packageName)
         scope.launch {
             val fresh = SportsFeed.iconsFor(match.home, match.away, competition)

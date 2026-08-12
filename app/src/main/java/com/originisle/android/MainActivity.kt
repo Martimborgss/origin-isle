@@ -40,16 +40,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Deterministic test hooks used during development.
         when (intent?.getStringExtra("autofire")) {
             "football" -> SportsCard.post(this, "ARS", 1, "MAN", 1, "65'")
         }
         intent?.getIntExtra("autofire_sample", -1)?.takeIf { it >= 0 }?.let {
             IslandSamples.all.getOrNull(it)?.post(this)
         }
-        // If casting is on, revive the foreground service (keeps the process + listener alive) and
-        // ask the system to (re)bind the notification listener — after a process kill the binding
-        // goes stale and stops delivering callbacks until it's rebound.
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("cast_notifications", false)) {
             PlaygroundService.keepAlive(this)
             runCatching {

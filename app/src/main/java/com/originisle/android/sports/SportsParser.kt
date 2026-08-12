@@ -56,8 +56,6 @@ object SportsParser {
             l.contains("half-time") || l.contains("half time") || l.contains("halftime") ||
                 Regex("""\bht\b""").containsMatchIn(l) -> "HT"
             l.contains("penalt") -> "Pens"
-            // Extra time BEFORE the plain half checks below — "extra time, first half" contains
-            // "first half" too, and that branch would otherwise match first and swallow the "ET".
             l.contains("extra time") || Regex("""\bet\b""").containsMatchIn(l) -> when {
                 l.contains("second") -> "ET 2nd half"
                 l.contains("first") -> "ET 1st half"

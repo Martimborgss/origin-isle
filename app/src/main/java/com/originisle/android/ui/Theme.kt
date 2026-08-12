@@ -10,8 +10,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * Origin Isle is dark-mode only — there is no light variant. Colours lean on the island-ocean teal
- * and the Apple-Pay-style green used by [com.originisle.android.cards.PaymentCard].
+ * Origin Isle is dark-mode
  */
 private val OriginIsleColorScheme = darkColorScheme(
     primary = Color(0xFF3FC6D6),
@@ -35,7 +34,6 @@ fun OriginIsleTheme(content: @Composable () -> Unit) {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, view)
-            // Light (white) status/nav bar icons, since the app is always on a dark background.
             controller.isAppearanceLightStatusBars = false
             controller.isAppearanceLightNavigationBars = false
         }

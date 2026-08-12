@@ -57,7 +57,7 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
     ) {
         item {
             Text("Origin Isle", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("Cast notifications to the vivo OriginIsland.", style = MaterialTheme.typography.bodyMedium)
+            Text("Cast notifications to OriginIsland.", style = MaterialTheme.typography.bodyMedium)
         }
         item {
             Card(Modifier.fillMaxWidth()) {
@@ -83,7 +83,7 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                     ) { Text("Keep alive without status-bar icon") }
                     Text(
                         "Enable \"Origin Isle keep-alive\" under Accessibility to run in the background " +
-                            "with NO status-bar icon (like a gesture app). It reads nothing.",
+                            "with NO status-bar icon. It reads nothing.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Text(listenerText, style = MaterialTheme.typography.bodySmall)
@@ -112,8 +112,7 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                         includeMessages = it; prefs.edit().putBoolean("cast_include_messages", it).apply()
                     }
                     Text(
-                        "Off = only live cards (downloads, navigation, calls, progress). " +
-                            "So WhatsApp calls show, texts don't.",
+                        "Off = only live cards (downloads, navigation, calls, progress). On= ALL",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     ToggleRow("Cast media sessions", mediaOn) {
@@ -196,7 +195,7 @@ private fun recastAll(context: Context) {
             )
         }
         android.widget.Toast.makeText(
-            context, "Listener not connected yet — grant notification access, then tap again.",
+            context, "Listener not connected yet — grant notification access, reboot app, then tap again.",
             android.widget.Toast.LENGTH_LONG,
         ).show()
         return

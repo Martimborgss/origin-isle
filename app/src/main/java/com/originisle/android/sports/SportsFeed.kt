@@ -28,8 +28,6 @@ object SportsFeed {
     private const val CREST_PX = 96
     private val crestCache = ConcurrentHashMap<String, Bitmap>()
 
-    // Short/ambiguous names -> canonical club (a plain "Dortmund" search returns a minor Oberliga
-    // side, not Borussia). Extend as needed.
     private val ALIASES = mapOf(
         "dortmund" to "Borussia Dortmund",
         "gladbach" to "Borussia Monchengladbach",
@@ -53,8 +51,6 @@ object SportsFeed {
         "sporting" to "Sporting CP",
         "ol" to "Olympique Lyonnais",
         "om" to "Olympique de Marseille",
-        // A bare "Union" matches an Argentinian club on TheSportsDB — need the full name for the
-        // Belgian one. ("Union Saint-Gilloise" with the hyphen returns zero results; without it works.)
         "union" to "Union Saint Gilloise",
     )
 
@@ -83,9 +79,6 @@ object SportsFeed {
         try {
             val query = ALIASES[key] ?: team
             var teams = fetchTeams(query)
-            // Names with diacritics or punctuation TheSportsDB doesn't index verbatim (e.g. Norway's
-            // "Bodø/Glimt" — the ø and the slash both trip up a literal search) return zero results.
-            // Retry once with those folded away ("Bodo Glimt").
             if (teams == null || teams.length() == 0) {
                 val normalized = normalizeForSearch(query)
                 if (normalized.isNotEmpty() && !normalized.equals(query, ignoreCase = true)) {
@@ -93,9 +86,6 @@ object SportsFeed {
                 }
             }
             if (teams == null || teams.length() == 0) return@withContext null
-            // Prefer: (1) a Soccer team whose league matches the match's own competition, (2) a Soccer
-            // team in a well-known major league (skips amateur "ASC 09 Dortmund" etc.), (3) the first
-            // Soccer team, (4) the first entry.
             val comp = competition.trim().lowercase()
             var chosen: JSONObject? = null
             var chosenIsMajorLeague = false

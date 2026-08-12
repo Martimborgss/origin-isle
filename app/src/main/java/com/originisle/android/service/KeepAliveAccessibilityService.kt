@@ -21,11 +21,6 @@ class KeepAliveAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // Re-bind the notification listener and re-grant SuperX scenes now that we anchor the process.
-        // Deliberately do NOT poke PlaygroundService here: tearing down the foreground service the
-        // instant this connects removed the process's only anchor, and OriginOS killed the process —
-        // which disabled this very accessibility service. Leave any running FGS alone; it simply won't
-        // be restarted once we're enabled (see PlaygroundService.ensureForeground).
         runCatching {
             NotificationListenerService.requestRebind(
                 ComponentName(this, NotificationCastListener::class.java),
