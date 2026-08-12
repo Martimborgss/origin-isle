@@ -35,6 +35,13 @@ object SportsCard {
     /** Stable notification id for the demo match. Any int in an unused band works. */
     const val MATCH_ID = 55001
 
+    /**
+     * Most score apps never cancel their own notification once a match ends — the "FT" card just
+     * sits there with a stale final score. Without an explicit timer, our card would sit on the
+     * island forever too. Keep the final result up for a while, then auto-clear it.
+     */
+    private const val FULL_TIME_AUTO_CLEAR_MS = 5 * 60 * 1000L
+
     private val handler = Handler(Looper.getMainLooper())
 
     /** Everything needed to re-post a card when the island's crowding changes, plus the crowded
@@ -46,6 +53,15 @@ object SportsCard {
         val clickResp: PendingIntent?, val crowded: Boolean,
     )
     private val lastPosts = ConcurrentHashMap<Int, PostArgs>()
+
+    /**
+     * Handler.postDelayed/removeCallbacksAndMessages match a token by *reference*, not value — a
+     * plain `id: Int` reboxes to a fresh Integer on every call (match ids are well outside Java's
+     * -128..127 boxing cache), so removal would silently never match the object scheduling created.
+     * Keep one stable token object per id instead.
+     */
+    private val clearTokens = ConcurrentHashMap<Int, Any>()
+    private fun tokenFor(id: Int): Any = clearTokens.getOrPut(id) { Any() }
 
     /**
      * Show or update a football score card.
@@ -134,6 +150,14 @@ object SportsCard {
             )
         }
         context.startService(intent)
+
+        // Any update for this match (extra time, a late correction) cancels a pending auto-clear.
+        // Once the match reaches full time, schedule one: the source app's own notification often
+        // just sits there unchanged after FT, so nothing would otherwise ever dismiss this card.
+        handler.removeCallbacksAndMessages(tokenFor(id))
+        if (clock == "FT") {
+            handler.postDelayed({ clear(context, id) }, tokenFor(id), FULL_TIME_AUTO_CLEAR_MS)
+        }
     }
 
     /**
@@ -181,7 +205,8 @@ object SportsCard {
 
     fun clear(context: Context, id: Int = MATCH_ID) {
         lastPosts.remove(id)
-        handler.removeCallbacksAndMessages(null)
+        handler.removeCallbacksAndMessages(tokenFor(id))
+        clearTokens.remove(id)
         context.startService(
             Intent(context, PlaygroundService::class.java)
                 .setAction(PlaygroundService.ACTION_CANCEL)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,8 +17,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ import kotlinx.coroutines.withContext
 fun AppsTab(context: Context, prefs: SharedPreferences) {
     var apps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var query by remember { mutableStateOf("") }
     val ignored = remember {
         mutableStateListOf<String>().apply { addAll(prefs.getStringSet("cast_ignored_apps", emptySet()).orEmpty()) }
     }
@@ -53,31 +57,50 @@ fun AppsTab(context: Context, prefs: SharedPreferences) {
         return
     }
 
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
-        item {
-            Text("Apps allowed on the island", fontWeight = FontWeight.SemiBold)
-            Text(
-                "Turn OFF the apps you don't want cast. Plain chat texts are already filtered out, " +
-                    "so a messenger's calls still show even while its messages don't.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        }
-        items(apps, key = { it.pkg }) { app ->
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                app.icon?.let { Image(it, null, Modifier.size(36.dp)) }
-                Spacer(Modifier.width(12.dp))
-                Text(app.label, Modifier.weight(1f))
-                Switch(
-                    checked = app.pkg !in ignored,
-                    onCheckedChange = { allowed ->
-                        if (allowed) ignored.remove(app.pkg) else if (app.pkg !in ignored) ignored.add(app.pkg)
-                        prefs.edit().putStringSet("cast_ignored_apps", ignored.toSet()).apply()
-                    },
-                )
+    val filtered = remember(apps, query) {
+        if (query.isBlank()) apps else apps.filter { it.label.contains(query, ignoreCase = true) }
+    }
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Apps allowed on the island", fontWeight = FontWeight.SemiBold)
+        Text(
+            "Turn OFF the apps you don't want cast. Plain chat texts are already filtered out, " +
+                "so a messenger's calls still show even while its messages don't.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            placeholder = { Text("Search apps") },
+            singleLine = true,
+            trailingIcon = {
+                if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text("✕") }
+            },
+        )
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+        if (filtered.isEmpty()) {
+            Text("No apps match \"$query\".", style = MaterialTheme.typography.bodySmall)
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(filtered, key = { it.pkg }) { app ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        app.icon?.let { Image(it, null, Modifier.size(36.dp)) }
+                        Spacer(Modifier.width(12.dp))
+                        Text(app.label, Modifier.weight(1f))
+                        Switch(
+                            checked = app.pkg !in ignored,
+                            onCheckedChange = { allowed ->
+                                if (allowed) ignored.remove(app.pkg) else if (app.pkg !in ignored) ignored.add(app.pkg)
+                                prefs.edit().putStringSet("cast_ignored_apps", ignored.toSet()).apply()
+                            },
+                        )
+                    }
+                }
             }
         }
     }

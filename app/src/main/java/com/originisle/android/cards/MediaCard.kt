@@ -58,9 +58,14 @@ object MediaCard {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // vivo's BASE template only ever surfaces the FIRST actionable entry as the capsule's single
+        // tappable button (see OriginIslandBuilder's `firstActionable`) — prev/next are carried along
+        // for when a template with real multi-button support is used, but today only index 0 is ever
+        // reachable from the card. That must be play/pause, not prev, or tapping the card does the
+        // wrong thing.
         val actions = arrayListOf(
-            makeAction(context, "⏮", mediaAction(MediaControlReceiver.ACTION_PREV)),
             makeAction(context, if (playing) "⏸" else "▶", mediaAction(MediaControlReceiver.ACTION_PLAY_PAUSE)),
+            makeAction(context, "⏮", mediaAction(MediaControlReceiver.ACTION_PREV)),
             makeAction(context, "⏭", mediaAction(MediaControlReceiver.ACTION_NEXT)),
         )
 
