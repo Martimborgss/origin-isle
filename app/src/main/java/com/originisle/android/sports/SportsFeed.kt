@@ -30,6 +30,7 @@ object SportsFeed {
 
     private val ALIASES = mapOf(
         "dortmund" to "Borussia Dortmund",
+        "bvb" to "Borussia Dortmund",
         "gladbach" to "Borussia Monchengladbach",
         "bayern" to "Bayern Munich",
         "leverkusen" to "Bayer Leverkusen",

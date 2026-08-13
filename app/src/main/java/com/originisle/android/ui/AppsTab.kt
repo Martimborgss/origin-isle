@@ -78,6 +78,18 @@ fun AppsTab(context: Context, prefs: SharedPreferences) {
                 if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text("✕") }
             },
         )
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Acts on whatever's currently filtered — with the search box empty that's every app,
+            // but it also doubles as "enable/disable all matching X" once you've typed a query.
+            TextButton(onClick = {
+                ignored.removeAll(filtered.map { it.pkg }.toSet())
+                prefs.edit().putStringSet("cast_ignored_apps", ignored.toSet()).apply()
+            }) { Text("Enable all") }
+            TextButton(onClick = {
+                filtered.forEach { if (it.pkg !in ignored) ignored.add(it.pkg) }
+                prefs.edit().putStringSet("cast_ignored_apps", ignored.toSet()).apply()
+            }) { Text("Disable all") }
+        }
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
         if (filtered.isEmpty()) {
