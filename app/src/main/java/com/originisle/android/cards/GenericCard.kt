@@ -110,8 +110,6 @@ object GenericCard {
                     putExtra("oi_right_template", style.rightTemplate)
                 }
                 hasProgress -> {
-                    // Base card body (clean title/content/icon) with the progress shown as a ring on
-                    // the island pill. The dedicated progress-visual template renders poorly here.
                     putExtra("oi_template", OriginIslandConstants.TEMPLATE_BASE)                 // 4
                     putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS) // 2
                     putExtra("show_progress", true)
@@ -119,8 +117,15 @@ object GenericCard {
                     putExtra("progress_max", progressMax)
                 }
                 else -> {
-                    putExtra("oi_template", OriginIslandConstants.TEMPLATE_BASE)                 // 4
-                    putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT) // 6
+                    putExtra("oi_left_content", "")
+                    if (!isCall) callIcon(context, sbn)?.let { putExtra("oi_left_icon", it) }
+                    putExtra("oi_template", OriginIslandConstants.TEMPLATE_BASE) // 4
+                    if (finalChip.isNotBlank()) {
+                        putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT) // 6
+                    } else {
+                        putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON) // 4
+                        putExtra("oi_show_right_icon", false)
+                    }
                 }
             }
         }
@@ -162,8 +167,6 @@ object GenericCard {
                 // otherwise treat as a payment -> green success tick
                 else -> CastStyle(base, iconStatus = OriginIslandConstants.ICON_STATUS_SUCCESS, chip = "✓")
             }
-            // Google Maps keeps the generic base template (vivo drops the nav template here); the
-            // isMaps branch in the caller already routes the distance/ETA into the pill chip.
             else -> null
         }
     }
