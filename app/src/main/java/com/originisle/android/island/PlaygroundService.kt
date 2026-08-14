@@ -19,6 +19,8 @@ import androidx.core.app.NotificationCompat
 import com.originisle.android.R
 import com.originisle.android.service.IconCache
 import com.originisle.android.service.KeepAliveAccessibilityService
+import com.originisle.android.ui.PREFS_NAME
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Posts, updates and ends OriginIsland "SuperX" cards.
@@ -63,6 +65,9 @@ class PlaygroundService : Service() {
     private val activeIds = linkedSetOf<Int>()
     private val originScenes = HashMap<Int, String>()
     private val originChangeRecord = HashMap<Int, Int>()
+    // Pending auto-dismiss timers, keyed by card id — only ever holds entries for non-live cards
+    // (see readAndPost); a live card's id is simply never added here.
+    private val autoDismissTasks = ConcurrentHashMap<Int, Runnable>()
     // Which card id currently occupies each scene. Only NAVIGATION is granted on most devices, so
     // every card shares it; vivo merges same-scene cards, so a new card must end the previous one
     // or it inherits stale fields (a ride ETA lingering under a flight card, etc.).
@@ -289,6 +294,23 @@ class PlaygroundService : Service() {
         originScenes[id] = scene
         activeCardIds = activeIds.toSet()
         postSuperX(id, iconRes, title, text, sourceApp, isOngoing, scene, bundle)
+
+        // Auto-dismiss: only for non-live cards (isOngoing is the same live/persistent flag the
+        // card posters set — media, sports and any ongoing/call/progress GenericCard all mark
+        // themselves live), and only when the user opted into a duration in Cast settings.
+        autoDismissTasks.remove(id)?.let { mainHandler.removeCallbacks(it) }
+        val autoDismissSec = getSharedPreferences(PREFS_NAME, 0).getInt("cast_auto_dismiss_seconds", 0)
+        if (autoDismissSec > 0 && !isOngoing) {
+            val task = Runnable {
+                cancelNotification(
+                    Intent(this, PlaygroundService::class.java)
+                        .putExtra("id", id)
+                        .putExtra("oi_scene", scene),
+                )
+            }
+            autoDismissTasks[id] = task
+            mainHandler.postDelayed(task, autoDismissSec * 1000L)
+        }
     }
 
     /**
@@ -351,6 +373,7 @@ class PlaygroundService : Service() {
     private fun cancelNotification(intent: Intent) {
         val id = intent.getIntExtra("id", -1)
         if (id == -1) return
+        autoDismissTasks.remove(id)?.let { mainHandler.removeCallbacks(it) }
         val scene = originScenes.remove(id) ?: intent.getStringExtra("oi_scene")
         if (scene != null) {
             endOrigin(id, scene)
@@ -373,6 +396,8 @@ class PlaygroundService : Service() {
     }
 
     private fun stopEverything() {
+        autoDismissTasks.values.forEach { mainHandler.removeCallbacks(it) }
+        autoDismissTasks.clear()
         val hadScenes = originScenes.isNotEmpty()
         HashMap(originScenes).forEach { (id, scene) -> endOrigin(id, scene) }
         originScenes.clear()

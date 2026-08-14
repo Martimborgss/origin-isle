@@ -93,6 +93,7 @@ object MediaCard {
         val intent = Intent(context, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
             putExtra("id", id)
+            putExtra("is_ongoing", true)
 
             putExtra("oi_scene", "NAVIGATION")
             putExtra("title", track)
