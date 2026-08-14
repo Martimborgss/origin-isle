@@ -1,6 +1,7 @@
 package com.originisle.android.service
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.SharedPreferences
@@ -11,6 +12,7 @@ import android.media.session.MediaSessionManager
 import android.os.Handler
 import android.os.Looper
 import android.service.notification.NotificationListenerService
+import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -262,14 +264,16 @@ class NotificationCastListener : NotificationListenerService() {
         // no progress bar, so it would otherwise be dropped.
         detectPayment(sbn)?.let { castPayment(sbn, it); log(sbn, "cast — payment", true); return }
 
-        // Only "live" notifications belong on the island: ongoing (downloads, navigation, calls),
-        // call notifications, or anything with a progress bar. Plain chat messages (e.g. WhatsApp
-        // texts) are skipped unless the user opts them in — so "WhatsApp call yes, messages no".
-        val includeMessages = prefs.getBoolean("cast_include_messages", false)
         val isOngoing = (n.flags and Notification.FLAG_ONGOING_EVENT) != 0
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
-        if (!includeMessages && !isOngoing && !isCall && !hasProgress) {
-            log(sbn, "skipped — plain message (not a live card)", false); return
+        val isLive = isOngoing || isCall || hasProgress
+
+        if (!isLive) {
+            val includeMessages = prefs.getBoolean("cast_include_messages", false)
+            if (!includeMessages) { log(sbn, "skipped — plain message (not a live card)", false); return }
+
+            val ignoreSilent = prefs.getBoolean("cast_ignore_silent", true)
+            if (ignoreSilent && isSilent(sbn)) { log(sbn, "skipped — silent notification", false); return }
         }
 
         val kind = when {
@@ -279,7 +283,17 @@ class NotificationCastListener : NotificationListenerService() {
             else -> "message"
         }
         log(sbn, "cast — $kind", true)
-        GenericCard.post(applicationContext, sbn)
+        GenericCard.post(applicationContext, sbn, isLive)
+    }
+
+    /**
+     * Whether [sbn]'s notification channel is currently below default importance — muted, or set to
+     * "silent"/"minimal" by the user. Used to keep muted chat threads off the island.
+     */
+    private fun isSilent(sbn: StatusBarNotification): Boolean {
+        val ranking = Ranking()
+        if (currentRanking?.getRanking(sbn.key, ranking) != true) return false
+        return ranking.importance < NotificationManager.IMPORTANCE_DEFAULT
     }
 
     /**

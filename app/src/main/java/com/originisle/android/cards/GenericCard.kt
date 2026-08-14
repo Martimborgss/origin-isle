@@ -19,7 +19,13 @@ import kotlin.math.abs
  */
 object GenericCard {
 
-    fun post(context: Context, sbn: StatusBarNotification) {
+    /**
+     * @param isLive whether [NotificationCastListener] classified this as a live/persistent
+     * notification (ongoing, call, or progress) rather than a one-off message — determines whether
+     * the card is eligible for the auto-dismiss timer. Computed once by the caller so this doesn't
+     * re-derive its own, possibly-drifting definition of "live".
+     */
+    fun post(context: Context, sbn: StatusBarNotification, isLive: Boolean) {
         val n = sbn.notification
         val extras = n.extras
         val id = IconCache.castIdFor(sbn)
@@ -82,6 +88,7 @@ object GenericCard {
         val intent = Intent(context, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
             putExtra("id", id)
+            putExtra("is_ongoing", isLive)
             putExtra("oi_scene", "NAVIGATION")
             putExtra("title", title)
             // vivo silently REJECTS a SuperX post with empty content text — falling back to a plain
