@@ -18,6 +18,7 @@ import kotlin.math.abs
  * payment or a media session goes through here.
  */
 object GenericCard {
+    private const val RIGHT_TEXT_MAX_CHARS = 8
 
     /**
      * @param isLive whether [NotificationCastListener] classified this as a live/persistent
@@ -132,6 +133,12 @@ object GenericCard {
                     } else {
                         putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON) // 4
                         putExtra("oi_show_right_icon", false)
+                        val body = text.ifBlank { bigText }.ifBlank { subText }
+                        val combined =
+                            if (title.isNotBlank() && title != appLabel && body.isNotBlank()) "$title: $body" else body
+                        putExtra("oi_right_content", combined.take(RIGHT_TEXT_MAX_CHARS).let {
+                            if (combined.length > RIGHT_TEXT_MAX_CHARS) "$it…" else it
+                        })
                     }
                 }
             }

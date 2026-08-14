@@ -221,6 +221,12 @@ class NotificationCastListener : NotificationListenerService() {
         if (sbn.packageName == packageName) return
         // Skip framework/system notifications (USB-debug banner, system UI, etc.) — noise on the island.
         if (sbn.packageName in SYSTEM_PKGS) return
+        // A group summary ("3 new messages") stays active alongside the individual notifications it
+        // summarizes — casting both means the same event shows up on the island twice (Gmail is the
+        // common case). The individual notifications carry the actual content, so skip the summary.
+        if ((sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0) {
+            log(sbn, "skipped — group summary", false); return
+        }
         val prefs = getSharedPreferences(PREFS, 0)
 
         // Per-app exclusion: never cast apps the user explicitly turned off in the Apps tab, for
