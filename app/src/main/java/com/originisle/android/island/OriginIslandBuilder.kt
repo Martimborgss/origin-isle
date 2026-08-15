@@ -148,11 +148,18 @@ object OriginIslandBuilder {
         waveState: Int = 1,
         waveColorList: List<String>? = null,
         changeRecord: Int = 0,
+        // The native vivo music-widget card (com.vivo.musicwidgetmix) posts its SuperX notification
+        // with this false — confirmed via `dumpsys notification` while it was live — and never shows
+        // up in the notification shade, unlike every card this app posts with it hardcoded true.
+        // Testing whether flipping it is what actually gates shade visibility.
+        showNotify: Boolean = true,
+        islandNotify: Boolean = false,
     ): Bundle {
         val C = OriginIslandConstants
         val bundle = Bundle()
         bundle.putInt(C.BUNDLE_KEY_OPERATION, operation)
-        bundle.putBoolean(C.BUNDLE_KEY_SHOW_NOTIFY, true)
+        bundle.putBoolean(C.BUNDLE_KEY_SHOW_NOTIFY, showNotify)
+        if (islandNotify) bundle.putBoolean(C.BUNDLE_KEY_ISLAND_NOTIFY, true)
         bundle.putInt(C.BUNDLE_KEY_TEMPLATE, template)
         bundle.putString(C.BUNDLE_KEY_SCENE, scene)
         bundle.putInt(C.BUNDLE_KEY_CHANGE_RECORD, changeRecord)

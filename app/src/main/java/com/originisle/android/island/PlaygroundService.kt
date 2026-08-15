@@ -174,7 +174,21 @@ class PlaygroundService : Service() {
         // identity; including the notification bit made it ALSO show as a duplicate shade entry
         // ("Origin Isle: Starting navigation" etc, mirroring whatever the source app's text was),
         // on top of the island rendering. Dropping it should leave the island/lockscreen/AOD intact.
-        val displays = intent.getIntExtra("oi_displays", 65808)
+        //
+        // The LOCKSCREEN bit specifically is NOT a per-card decision — it's owned centrally by the
+        // "Live card on lockscreen" setting (Cast tab), so every card behaves the same regardless of
+        // what it passes in oi_displays. Strip whatever the card asked for, then re-add it only if the
+        // user opted in.
+        val baseDisplays = intent.getIntExtra(
+            "oi_displays",
+            OriginIslandConstants.DISPLAY_STATUSBAR or OriginIslandConstants.DISPLAY_AOD,
+        )
+        val lockscreenOptIn = getSharedPreferences(PREFS_NAME, 0)
+            .getBoolean("cast_lockscreen_live_card", false)
+        val displays = (baseDisplays and OriginIslandConstants.DISPLAY_LOCKSCREEN.inv()) or
+            (if (lockscreenOptIn) OriginIslandConstants.DISPLAY_LOCKSCREEN else 0)
+        val showNotify = intent.getBooleanExtra("oi_show_notify", true)
+        val islandNotify = intent.getBooleanExtra("oi_island_notify", false)
         val islandShowTime = intent.getIntExtra("oi_island_show_time", 0)
         val forceShow = intent.getBooleanExtra("oi_force_show", false)
         val dismissWhenKill = intent.getBooleanExtra("oi_dismiss_when_kill", true)
@@ -186,6 +200,7 @@ class PlaygroundService : Service() {
         val generatingStatus = intent.getIntExtra("oi_generating_status", 0)
         val iconStatusType = intent.getIntExtra("oi_icon_status_type", -1)
         val waveState = intent.getIntExtra("oi_wave_state", 1)
+        val waveColorList = intent.getStringArrayListExtra("oi_wave_color_list")
         val progressState = if (intent.getBooleanExtra("progress_indeterminate", false)) 1 else 0
 
         val customTemplate: RemoteViews? =
@@ -268,7 +283,10 @@ class PlaygroundService : Service() {
             buttonTitles = buttonTitles,
             customTemplate = customTemplate,
             waveState = waveState,
+            waveColorList = waveColorList,
             changeRecord = changeRecord,
+            showNotify = showNotify,
+            islandNotify = islandNotify,
         )
 
         val sourceApp = intent.getStringExtra("source_app").orEmpty()

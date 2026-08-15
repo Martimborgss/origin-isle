@@ -34,6 +34,9 @@ object OriginIslandConstants {
     const val BUNDLE_KEY_DISPLAYS = "notification.superx.displays"
     const val BUNDLE_KEY_SOUND = "notification.superx.sound"
     const val BUNDLE_KEY_DISMISS_WHEN_KILL = "notification.superx.dismissWhenKill"
+    // Seen on the native vivo music-widget card (com.vivo.musicwidgetmix) alongside showNotify=false;
+    // not documented anywhere, recovered via `dumpsys notification` on a live card.
+    const val BUNDLE_KEY_ISLAND_NOTIFY = "notification.superx.islandNotify"
     const val BUNDLE_KEY_CUSTOM_SUPERX = "notification.superx.customSuperx"
     const val BUNDLE_KEY_CARD_BG_COLOR = "notification.superx.cardBgColor"
     const val BUNDLE_KEY_KEEP_SCREEN_ON = "notification.superx.keepScreenOn"

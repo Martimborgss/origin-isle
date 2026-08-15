@@ -43,6 +43,7 @@ object MediaCard {
         val albumArt: Bitmap? = (md?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: md?.getBitmap(MediaMetadata.METADATA_KEY_ART))?.let(::shrinkForIcon)
         albumArt?.let { IconCache.activeLargeBitmaps[id] = it }
+        val waveColors = waveColorsFrom(albumArt)
 
         val showChrono = n.extras.getBoolean(NotificationCompat.EXTRA_SHOW_CHRONOMETER, false)
         val chip = if (showChrono && n.`when` > 0) {
@@ -108,13 +109,16 @@ object MediaCard {
             putExtra("oi_template", OriginIslandConstants.TEMPLATE_BUTTONS)
             putExtra("oi_bg_color", "#FF262626")
             putExtra("oi_fg_color", "#FFFFFFFF")
-            putExtra(
-                "oi_displays",
-                OriginIslandConstants.DISPLAY_STATUSBAR or OriginIslandConstants.DISPLAY_AOD,
-            )
+            // Lockscreen visibility is decided globally by the "Live card on lockscreen" setting in
+            // PlaygroundService, not per-card — no oi_displays override needed here anymore.
             if (playing) {
                 putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_WAVE)
+                // Test: waveState=2 rendered a static (non-animated) wave shape. Trying 1 now that real
+                // colours are actually wired in — never tested that combination before.
                 putExtra("oi_wave_state", 1)
+                if (waveColors.isNotEmpty()) {
+                    putStringArrayListExtra("oi_wave_color_list", ArrayList(waveColors))
+                }
             } else {
                 putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_TEXT_ICON)
             }
@@ -137,4 +141,20 @@ object MediaCard {
 
     private fun makeAction(context: Context, iconRes: Int, pi: PendingIntent): Notification.Action =
         Notification.Action.Builder(Icon.createWithResource(context, iconRes), "", pi).build()
+
+    /**
+     * Sample a few points across the album art to get a small palette for the wave visualiser
+     * (island.superx.rightInfo.waveColor), instead of the single flat colour OriginIslandBuilder
+     * falls back to when no list is supplied. No Palette dependency — just direct pixel sampling.
+     */
+    private fun waveColorsFrom(bitmap: Bitmap?): List<String> {
+        if (bitmap == null || bitmap.width == 0 || bitmap.height == 0) return emptyList()
+        val w = bitmap.width
+        val h = bitmap.height
+        return listOf(0.25f to 0.5f, 0.5f to 0.3f, 0.75f to 0.5f).map { (fx, fy) ->
+            val x = (fx * (w - 1)).toInt().coerceIn(0, w - 1)
+            val y = (fy * (h - 1)).toInt().coerceIn(0, h - 1)
+            String.format("#%06X", 0xFFFFFF and bitmap.getPixel(x, y))
+        }
+    }
 }

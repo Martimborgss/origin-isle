@@ -94,6 +94,9 @@ object SportsCard {
             action = PlaygroundService.ACTION_START
             putExtra("id", id)
 
+            // Must stay ongoing: a non-ongoing SuperX card is auto-cancelled by OriginOS after ~5s
+            // (confirmed via dumpsys) and can't be refreshed fast enough to outrun that (updates
+            // faster than once per 10s are dropped) — so a match-length live card requires this.
             putExtra("is_ongoing", true)
             putExtra("oi_scene", "NAVIGATION") // any granted scene works as the carrier
             putExtra("oi_template", OriginIslandConstants.TEMPLATE_TEXT_SYMMETRY) // 3

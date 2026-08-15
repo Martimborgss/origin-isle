@@ -46,6 +46,7 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
     var mediaOn by remember { mutableStateOf(prefs.getBoolean("cast_media_sessions", false)) }
     var includeMessages by remember { mutableStateOf(prefs.getBoolean("cast_include_messages", false)) }
     var ignoreSilent by remember { mutableStateOf(prefs.getBoolean("cast_ignore_silent", true)) }
+    var lockscreenLiveCard by remember { mutableStateOf(prefs.getBoolean("cast_lockscreen_live_card", false)) }
     var autoDismissSec by remember { mutableStateOf(prefs.getInt("cast_auto_dismiss_seconds", 0)) }
     val listenerText = remember { listenerStatusText(context) }
     val batteryText = remember { batteryStatusText(context) }
@@ -111,6 +112,10 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                     }
                     ToggleRow("Ignore silenced notifications", ignoreSilent) {
                         ignoreSilent = it; prefs.edit().putBoolean("cast_ignore_silent", it).apply()
+                    }
+                    ToggleRow("Live card on lockscreen", lockscreenLiveCard) {
+                        lockscreenLiveCard = it
+                        prefs.edit().putBoolean("cast_lockscreen_live_card", it).apply()
                     }
                 }
             }
