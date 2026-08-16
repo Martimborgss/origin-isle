@@ -274,7 +274,13 @@ class NotificationCastListener : NotificationListenerService() {
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
         val isLive = isOngoing || isCall || hasProgress
 
-        if (!isLive) {
+        // A download finishing is usually an UPDATE to the same notification (progress/ongoing flags
+        // just get cleared), not a cancel+repost — browsers do this. If we already have a live card up
+        // for this id, this update must still go through even though it now looks like "just a plain
+        // message", or the card is stuck showing its last progress forever with nothing to ever tell
+        // it otherwise. Only apply the message/silent filters to notifications we haven't already cast.
+        val wasLive = IconCache.castIdFor(sbn) in PlaygroundService.activeCardIds
+        if (!isLive && !wasLive) {
             val includeMessages = prefs.getBoolean("cast_include_messages", false)
             if (!includeMessages) { log(sbn, "skipped — plain message (not a live card)", false); return }
 
