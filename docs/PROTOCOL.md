@@ -82,8 +82,9 @@ alternative in practice.
 
 ### The navigation templates (5 and 9)
 
-Templates 5 and 9 exist for turn-by-turn navigation and are what this app's `NavigationCard` posts
-(behind the Cast tab's "Driving navigation card" switch — see the note on unproven templates below).
+Templates 5 and 9 exist for turn-by-turn navigation. `NavigationCard` posts template 9 unconditionally
+for any recognised navigation notification (Maps, Waze, anything with `CATEGORY_NAVIGATION`) — no
+toggle, it's the default path. Template 5 isn't posted by any card yet; only the in-app sample exists.
 
 | Key | Template | Carries |
 |---|---|---|
@@ -97,9 +98,9 @@ Templates 5 and 9 exist for turn-by-turn navigation and are what this app's `Nav
 written by the builder: the protocol dump gives the key but not its element type, and handing vivo a
 wrongly-typed list throws inside the system's own unparcel — on a live navigation card.
 
-Neither template has been confirmed rendering on hardware yet. A rejected post looks identical to
-"the app did nothing" (see §4), so the in-app tester carries a sample for each: if the sample never
-appears, the template is being dropped and the generic base card (4) is the working fallback.
+Template 9 is confirmed rendering correctly on hardware (X100U). Template 5 is not yet confirmed — a
+rejected post looks identical to "the app did nothing" (see §4), so the in-app tester carries a sample
+for it: if the sample never appears, the template is being dropped.
 
 ## 4. What makes vivo actually accept the post
 

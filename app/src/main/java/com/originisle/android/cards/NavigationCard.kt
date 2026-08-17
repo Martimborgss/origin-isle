@@ -20,8 +20,8 @@ import com.originisle.android.service.IconCache
  * arrow as the card icon. [com.originisle.android.island.OriginIslandBuilder] has always been able
  * to build it; until now nothing ever asked for it.
  *
- * Gated on the `cast_navigation_card` pref (Cast tab, off by default): template 9 is unproven on
- * real hardware, and if vivo renders it badly the switch falls navigation back to [GenericCard].
+ * The default, unconditional path for any recognised navigation notification — confirmed rendering
+ * correctly on hardware, so there's no toggle/fallback to [GenericCard] to opt out of it anymore.
  */
 object NavigationCard {
 

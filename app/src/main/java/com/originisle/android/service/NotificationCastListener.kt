@@ -300,10 +300,8 @@ class NotificationCastListener : NotificationListenerService() {
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
         val isLive = isOngoing || isCall || hasProgress
 
-        // Turn-by-turn navigation -> vivo's own driving card (template 9) instead of the generic
-        // one. Opt-in: that template has never been posted on real hardware, so the switch is the
-        // escape hatch back to the GenericCard path if OriginOS renders it badly or drops it.
-        if (prefs.getBoolean("cast_navigation_card", false) && isNavigation(sbn, isOngoing)) {
+        // Turn-by-turn navigation -> vivo's own driving card (template 9) instead of the generic one.
+        if (isNavigation(sbn, isOngoing)) {
             log(sbn, "cast — navigation", true)
             NavigationCard.post(applicationContext, sbn)
             return

@@ -114,6 +114,11 @@ isn't an official build.
 Want to build it yourself, understand the AMap package-name spoof, or cut a signed release? See
 [docs/DEV.md](docs/DEV.md).
 
+## Contributors
+
+- [Martim Borges](https://github.com/Martimborgss) — the driving-navigation card (vivo's template 9)
+  and the fix for Maps/Waze showing a bare progress ring instead of the distance/ETA.
+
 ## License
 
 See [LICENSE](LICENSE) — a **source-available, no-redistribution** license. In short: you can read
