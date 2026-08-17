@@ -153,6 +153,7 @@ class PlaygroundService : Service() {
         val extra4 = intent.getStringExtra("oi_extra4").orEmpty()
         val subtext = intent.getStringExtra("subtext")
         val navMsg = intent.getStringExtra("oi_nav_msg")
+        val navAssist = intent.getStringExtra("oi_nav_assist")
 
         val bgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_bg_color"), 0)
         val fgColor = OriginIslandBuilder.parseColor(intent.getStringExtra("oi_fg_color"), 0)
@@ -261,6 +262,7 @@ class PlaygroundService : Service() {
             largeIcon = largeIcon,
             subText = subtext,
             navMsg = navMsg,
+            navAssistText = navAssist,
             actions = actions,
             keepDuration = keepDuration,
             displays = displays,

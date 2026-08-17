@@ -80,6 +80,28 @@ Top-level keys (`notification.superx.*`) plus four sub-bundles:
 The **left** island template is effectively fixed at "icon + content" — there's no meaningful
 alternative in practice.
 
+### The navigation templates (5 and 9)
+
+Templates 5 and 9 exist for turn-by-turn navigation. `NavigationCard` posts template 9 unconditionally
+for any recognised navigation notification (Maps, Waze, anything with `CATEGORY_NAVIGATION`) — no
+toggle, it's the default path. Template 5 isn't posted by any card yet; only the in-app sample exists.
+
+| Key | Template | Carries |
+|---|---|---|
+| `infos.navIcon` / `infos.navMsg` | 5 | one icon and a single message line |
+| `infos.dirIcon` | 9 | the maneuver arrow |
+| `infos.mainHighlightText` / `infos.mainNormalText` | 9 | maneuver line (emphasised) + street line |
+| `infos.dirSubText` | 9 | journey summary ("12 min · 4,5 km · 14:32") |
+| `infos.dirAssistText` + `infos.dirAssistType` (1 = text) | 9 | secondary hint under the maneuver ("Keep left") |
+
+`infos.laneList` (lane guidance) is catalogued in `OriginIslandConstants` but deliberately **not**
+written by the builder: the protocol dump gives the key but not its element type, and handing vivo a
+wrongly-typed list throws inside the system's own unparcel — on a live navigation card.
+
+Template 9 is confirmed rendering correctly on hardware (X100U). Template 5 is not yet confirmed — a
+rejected post looks identical to "the app did nothing" (see §4), so the in-app tester carries a sample
+for it: if the sample never appears, the template is being dropped.
+
 ## 4. What makes vivo actually accept the post
 
 This is the part that isn't documented anywhere and took the most trial and error. A SuperX

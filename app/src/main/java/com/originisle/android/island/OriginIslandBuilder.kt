@@ -121,6 +121,7 @@ object OriginIslandBuilder {
         largeIcon: Icon? = null,
         subText: String? = null,
         navMsg: String? = null,
+        navAssistText: String? = null,
         actions: List<OriginAction> = emptyList(),
         keepDuration: Int = 0,
         displays: Int = 0,
@@ -312,6 +313,18 @@ object OriginIslandBuilder {
                 infos.putString(C.BUNDLE_KEY_INFO_MAIN_HIGHLIGHT_TEXT, title)
                 infos.putString(C.BUNDLE_KEY_INFO_MAIN_NORMAL_TEXT, content)
                 infos.putCharSequence(C.BUNDLE_KEY_INFO_DIR_SUB_TEXT, navMsg ?: content)
+                // Assist line: the secondary hint a driving card can carry under the maneuver
+                // ("Keep left", "Then turn right"). Type 1 = plain text.
+                navAssistText?.takeIf { it.isNotBlank() }?.let {
+                    infos.putInt(C.BUNDLE_KEY_INFO_DIR_ASSIST_TYPE, 1)
+                    infos.putString(C.BUNDLE_KEY_INFO_DIR_ASSIST_TEXT, it)
+                    if (!isDefaultColor(fgColor)) {
+                        infos.putInt(C.BUNDLE_KEY_INFO_DIR_ASSIST_TEXT_COLOR, fgColor)
+                    }
+                }
+                // BUNDLE_KEY_INFO_LANE_LIST (lane guidance) is deliberately NOT written: the
+                // protocol catalogues the key but not its element type, and handing vivo a wrongly
+                // typed list would throw inside the system's own unparcel, on a live nav card.
             }
         }
         bundle.putBundle(C.BUNDLE_KEY_INFOS, infos)

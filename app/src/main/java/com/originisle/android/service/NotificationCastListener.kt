@@ -18,6 +18,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.originisle.android.cards.GenericCard
 import com.originisle.android.cards.MediaCard
+import com.originisle.android.cards.NavigationCard
 import com.originisle.android.cards.PaymentCard
 import com.originisle.android.cards.SportsCard
 import com.originisle.android.cards.fallbackClickIntent
@@ -74,6 +75,16 @@ class NotificationCastListener : NotificationListenerService() {
             "de.motain.iliga",             // OneFootball
             "com.scores365",               // 365Scores
             "com.livescore",               // LiveScore
+        )
+
+        /**
+         * Turn-by-turn navigation apps. Most set [Notification.CATEGORY_NAVIGATION] and are matched
+         * on that alone; these two are listed by package because they're the ones worth casting even
+         * on a build that doesn't set the category.
+         */
+        private val NAV_APPS = setOf(
+            "com.google.android.apps.maps", // Google Maps
+            "com.waze",                     // Waze
         )
 
         /** Wallet / bank / money apps whose notifications are treated as payments (Apple-Pay card). */
@@ -289,6 +300,13 @@ class NotificationCastListener : NotificationListenerService() {
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
         val isLive = isOngoing || isCall || hasProgress
 
+        // Turn-by-turn navigation -> vivo's own driving card (template 9) instead of the generic one.
+        if (isNavigation(sbn, isOngoing)) {
+            log(sbn, "cast — navigation", true)
+            NavigationCard.post(applicationContext, sbn)
+            return
+        }
+
         // A download finishing is usually an UPDATE to the same notification (progress/ongoing flags
         // just get cleared), not a cancel+repost — browsers do this. If we already have a live card up
         // for this id, this update must still go through even though it now looks like "just a plain
@@ -311,6 +329,25 @@ class NotificationCastListener : NotificationListenerService() {
         }
         log(sbn, "cast — $kind", true)
         GenericCard.post(applicationContext, sbn, isLive)
+    }
+
+    /**
+     * Whether [sbn] is an active turn-by-turn navigation notification, i.e. one [NavigationCard]
+     * can build a driving card out of.
+     *
+     * The category is the reliable signal and picks up Waze, Organic Maps, Sygic and the rest for
+     * free. The package check is the fallback for builds that don't set it — but it additionally
+     * demands real text, because Maps also keeps a bare ongoing "Maps is running" notification alive
+     * with nothing in it, and a driving card built from that is an empty card.
+     */
+    private fun isNavigation(sbn: StatusBarNotification, isOngoing: Boolean): Boolean {
+        if (!isOngoing) return false
+        val extras = sbn.notification.extras
+        if (sbn.notification.category == Notification.CATEGORY_NAVIGATION) return true
+        if (sbn.packageName !in NAV_APPS) return false
+        val text = extras.getCharSequence(NotificationCompat.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+        val subText = extras.getCharSequence(NotificationCompat.EXTRA_SUB_TEXT)?.toString()?.trim().orEmpty()
+        return text.isNotBlank() || subText.isNotBlank()
     }
 
     /**
