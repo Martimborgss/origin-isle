@@ -99,17 +99,9 @@ class PlaygroundService : Service() {
     }
 
     /**
-     * Swiping the task away on OriginOS kills the whole process — the notification listener with it.
-     * START_STICKY is not enough on its own there (the service simply never came back), so re-arm
-     * two ways: make sure the FGS is up, and leave an alarm behind that restarts this service a
-     * second later if the process dies anyway.
-     *
-     * The alarm survives the kill because a swipe is a plain process kill, not a force-stop —
-     * verified with `dumpsys package`, which still reports `stopped=false` afterwards. (A real
-     * force-stop sets that flag and cancels alarms, and nothing an app does can escape it.)
-     * [PendingIntent.getForegroundService] is what the alarm fires; starting an FGS from the
-     * background is allowed here because the app is on the battery-optimisation allowlist, which
-     * onboarding already asks for.
+     * START_STICKY alone didn't bring the service back on OriginOS, so also leave an alarm behind
+     * that restarts it a second later. The alarm survives because a swipe is a plain process kill,
+     * not a force-stop (which would cancel it, and which nothing can escape).
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
@@ -129,24 +121,11 @@ class PlaygroundService : Service() {
 
     private fun ensureForeground() {
         if (isForegroundActive) return
-        // The FGS now starts UNCONDITIONALLY. It used to be skipped whenever the keep-alive
-        // AccessibilityService was enabled, on the theory that accessibility alone anchors the
-        // process — but that premise is wrong, and it was the reason casting died for good on
-        // swipe-away. Measured on an X200 Pro (OriginOS): swiping the task away kills the process,
-        // and `dumpsys accessibility` then reports
-        //
-        //     Enabled services:{{…/KeepAliveAccessibilityService}}
-        //     Crashed services:{{…/KeepAliveAccessibilityService}}
-        //
-        // i.e. AccessibilityManagerService sees the binding die, marks the service CRASHED, and
-        // never rebinds it. It stays "enabled" in Settings.Secure while being completely dead, so
-        // the process had no anchor at all, nothing restarted it, and only a reboot (which rebinds
-        // every enabled accessibility service from scratch) brought casting back.
-        //
-        // The status-bar icon this skip was avoiding is already handled a different way: CHANNEL_ID
-        // is created at IMPORTANCE_NONE (blocked), which suppresses the FGS notification outright —
-        // see createNotificationChannel. So running the FGS costs nothing visually and buys the one
-        // anchor the system actually honours across task removal.
+        // Starts UNCONDITIONALLY. This used to be skipped when the keep-alive AccessibilityService
+        // was enabled, assuming it anchored the process — but a swipe-away kill makes
+        // AccessibilityManagerService mark the service CRASHED and never rebind it, so it stayed
+        // "enabled" while completely dead and nothing restarted us until a reboot. The status-bar
+        // icon that skip was avoiding is handled instead by CHANNEL_ID being IMPORTANCE_NONE.
         createNotificationChannel(CHANNEL_ID)
         val n = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Origin Isle")
@@ -160,12 +139,14 @@ class PlaygroundService : Service() {
             .setSilent(true)
             .setOngoing(true)
             .build()
-        try {
+        // Both calls can throw: the onTaskRemoved alarm starts this service from the background, and
+        // that is only allowed while the app holds the battery-optimisation exemption (which
+        // onboarding lets the user skip). Failing to go foreground must not take the process down.
+        isForegroundActive = runCatching {
             startForeground(FGS_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } catch (_: Exception) {
+        }.recoverCatching {
             startForeground(FGS_ID, n)
-        }
-        isForegroundActive = true
+        }.isSuccess
     }
 
     // --- posting -----------------------------------------------------------------

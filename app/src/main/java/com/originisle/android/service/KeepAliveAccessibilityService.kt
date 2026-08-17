@@ -19,9 +19,8 @@ class KeepAliveAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        // This fires when the system (re)starts our process, which is exactly the moment the
-        // notification listener needs recovering after a swipe-away kill. A plain requestRebind is
-        // a no-op in that case — see [NotificationCastListener.forceRebind].
+        // Fires when the system (re)starts our process — exactly when the listener needs recovering
+        // after a swipe-away kill, where a plain requestRebind is a no-op (see [forceRebind]).
         runCatching { NotificationCastListener.forceRebind(this) }
         runCatching { OriginIslandBuilder.grantScenes(this) }
     }

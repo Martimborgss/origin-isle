@@ -48,10 +48,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Heal a listener that died with the process (OriginOS kills it on swipe-away) every time the
-     * app comes to the foreground, not just on a cold start — otherwise a resume of an
-     * already-running task silently skips the recovery. [NotificationCastListener.forceRebind] is a
-     * no-op while the listener is connected, so this is cheap on the normal path.
+     * Heal a killed listener on every foregrounding, not just a cold start — resuming an
+     * already-running task would otherwise skip the recovery. Cheap: [forceRebind] no-ops while the
+     * listener is connected.
      */
     override fun onResume() {
         super.onResume()

@@ -50,19 +50,20 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
     var ignoreSilent by remember { mutableStateOf(prefs.getBoolean("cast_ignore_silent", true)) }
     var lockscreenLiveCard by remember { mutableStateOf(prefs.getBoolean("cast_lockscreen_live_card", false)) }
     var autoDismissSec by remember { mutableStateOf(prefs.getInt("cast_auto_dismiss_seconds", 0)) }
-    val listenerText = remember { listenerStatusText(context) }
-    val batteryText = remember { batteryStatusText(context) }
-    val accessibilityText = remember { accessibilityStatusText(context) }
-    // vivo exposes no way to read the auto-start / "Associated startup" toggles, so all we can track
-    // is whether the user has been sent to that screen — same ack flag the onboarding row writes.
+    val tick = rememberResumeTick()
+    val listenerText = remember(tick.intValue) { listenerStatusText(context) }
+    val batteryText = remember(tick.intValue) { batteryStatusText(context) }
+    val accessibilityText = remember(tick.intValue) { accessibilityStatusText(context) }
+    // Neither vivo toggle is readable, so all we can track is whether the user has been sent to that
+    // screen — the same ack flag the onboarding row writes.
     var autoStartAck by remember { mutableStateOf(prefs.getBoolean("onboarding_autostart_ack", false)) }
     val autoStartText = autoStartStatusText(autoStartAck)
 
     // Setup only needs attention again if something actually broke (OriginOS revoking notification
     // access or re-restricting battery is a known failure mode) — otherwise it stays collapsed to a
     // one-line status so it's not the first thing in the way on every open.
-    val listenerOk = remember { isListenerEnabled(context) }
-    val batteryOk = remember { isBatteryUnrestricted(context) }
+    val listenerOk = remember(tick.intValue) { isListenerEnabled(context) }
+    val batteryOk = remember(tick.intValue) { isBatteryUnrestricted(context) }
     var setupExpanded by remember { mutableStateOf(!listenerOk || !batteryOk) }
     var samplesExpanded by remember { mutableStateOf(false) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
@@ -173,11 +174,9 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                                 prefs.edit().putBoolean("onboarding_autostart_ack", true).apply()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Auto-start + Associated startup") }
+                        ) { Text("Autostart + Associated startup") }
                         Text(
-                            "Turn BOTH on, especially \"Associated startup\" — it's what lets the system " +
-                                "restart Origin Isle. With it off, closing the app from recents kills " +
-                                "casting until you reboot the phone.",
+                            "Turn BOTH on, or closing the app from recents kills casting until you reboot.",
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Text(listenerText, style = MaterialTheme.typography.bodySmall)
