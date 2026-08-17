@@ -2,44 +2,38 @@
 
 **Bring the OriginOS island to every app.**
 
-If you own a vivo or iQOO phone with OriginOS, you've probably seen the little pill at the top of
-the screen — the one that shows a live timer for a taxi ride, a football score, or a music player.
-That's called **OriginIsland** (part of **SuperX**). The problem: out of the box, it only lights up
-for a short list of Chinese apps.
-
-Origin Isle fixes that. It watches your notifications and re-casts them onto the same island, so
-downloads, turn-by-turn navigation, calls, payments, media playback and live football scores from
+Origin Isle brings OriginIsland supports to all your apps. 
+It watches your notifications and re-casts them onto the same island, so downloads,
+turn-by-turn navigation, calls, payments, media playback and live football scores from
 your everyday apps — including European and international ones — show up there too.
 
 This is a hobby project, not an official vivo/iQOO/OriginOS product.
 
 ## Screenshots
 
-| Cast tab | Apps tab (allow/deny list) | Log tab |
-| --- | --- | --- |
-| ![Cast tab](docs/screenshots/cast-tab.png) | ![Apps tab](docs/screenshots/apps-tab.png) | ![Log tab](docs/screenshots/log-tab.jpg) |
+| Cast tab                               | Apps tab (allow/deny list)             | Log tab                                  |
+|----------------------------------------|----------------------------------------|------------------------------------------|
+| ![Cast tab](docs/screenshots/cast.jpg) | ![Apps tab](docs/screenshots/apps.jpg) | ![Log tab](docs/screenshots/log-tab.jpg) |
 
-The app UI above was captured on a plain Android emulator (no island to show there). Everything
-below is the real OriginIsland pill on an actual OriginOS phone:
 
 | Island — navigation | Island — payment | Island — call |
 | --- | --- | --- |
 | ![Navigation card on the island](docs/screenshots/island-navigation.jpg) | ![Payment card on the island](docs/screenshots/island-payment.jpg) | ![Call card on the island](docs/screenshots/island-call.jpg) |
 
-| Island — football score (compact) | Island — football score (both crests) |
-| --- | --- |
-| ![Compact football score on the island](docs/screenshots/island-football.jpg) | ![Football score with both team crests on the island](docs/screenshots/island-football-double.jpg) |
+| Island — football score                                                       |
+|-------------------------------------------------------------------------------|
+| ![Compact football score on the island](docs/screenshots/island-football.jpg) |
+
+| Island - mimic OriginPlayer                 |
+|---------------------------------------------|
+| ![Music Player](docs/screenshots/media.jpg) |
 
 ## What it does
 
-- **Casts almost any notification** to the island — downloads, navigation, incoming calls, progress
-  bars, and (if you turn it on) regular chat messages — each shown as the card style that fits it
-  best.
-- **You choose which apps get to use it.** The Apps tab has a simple allow/deny list, plus a switch
-  per app for "calls yes, texts no" if that's what you want.
+- **Casts any notification** to the island
+- **You choose which apps get to use it.**
 - **A log you can check.** The Log tab shows every notification the app saw, whether it was cast to
-  the island or skipped (and why), plus whether the connection to OriginOS is currently healthy —
-  with a manual reconnect button if it isn't.
+  the island or skipped (and why).
 - **Tap a card to jump straight to that notification** in the original app.
 - **Live football scores** with real team crests, laid out to fit whatever room is left on the
   island.
@@ -47,24 +41,14 @@ below is the real OriginIsland pill on an actual OriginOS phone:
   Revolut, PayPal, N26, Monzo, Starling and similar apps.
 - **Media controls on the island** — previous/play-pause/next for whatever's playing, wired back to
   the real app.
-- **Calls show the caller's own app icon**, not a generic phone symbol.
-- **"Recast all"** — one tap to push every notification currently on your phone through to the
-  island.
-- **No icon sits in your status bar.** OriginOS normally forces an icon for any app running a
-  background service; Origin Isle avoids that using the same trick some gesture-navigation apps use
-  (details in [docs/DEV.md](docs/DEV.md) if you're curious).
 
-## Before you install: a few things to know
+## Before you install:
 
-- **This only works on vivo/iQOO phones running OriginOS.** It will install on other Android 14+
-  phones, but the island itself won't appear — there's nothing to cast to.
-- **It can't be installed alongside the real AMap (高德地图) app.** Origin Isle borrows AMap's
-  technical identity so OriginOS lets it use the island — that's also why the two apps can't be on
-  the same phone at once. See [docs/DEV.md](docs/DEV.md) for the full explanation.
-- **It reads your notifications**, so only install it from this repo's Releases page, and check the
-  checksum below before you do. Never install an "Origin Isle" APK from anywhere else.
-- **This isn't and never will be on the Play Store.** It's a personal sideload, shared here for
-  anyone who wants the same thing on their own phone.
+- **This only works on vivo/iQOO phones running OriginOS 6.** .
+- **Enable OriginOS Navigation first.**
+  ![Navigation setting](docs/screenshots/pre-req.jpg)
+- **It can't be installed alongside the real AMap (高德地图) app.** See [docs/DEV.md](docs/DEV.md) for the full explanation.
+- **It reads your notifications**, so ONLY install it from this repo's Releases page.
 
 ## Installing
 
