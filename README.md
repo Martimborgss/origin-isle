@@ -13,7 +13,7 @@ This is a hobby project, not an official vivo/iQOO/OriginOS product.
 
 | Cast tab                               | Apps tab (allow/deny list)             | Log tab                                  |
 |----------------------------------------|----------------------------------------|------------------------------------------|
-| ![Cast tab](docs/screenshots/cast.jpg) | ![Apps tab](docs/screenshots/apps.jpg) | ![Log tab](docs/screenshots/log-tab.jpg) |
+| <img src="docs/screenshots/cast.jpg" width="300"> | <img src="docs/screenshots/apps.jpg" width="300"> | <img src="docs/screenshots/log-tab.jpg" width="300"> |
 
 
 | Island — navigation | Island — payment | Island — call |
