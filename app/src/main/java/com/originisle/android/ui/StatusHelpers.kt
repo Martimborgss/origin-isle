@@ -35,6 +35,17 @@ fun accessibilityStatusText(context: Context): String =
 fun batteryStatusText(context: Context): String =
     if (isBatteryUnrestricted(context)) "Battery: unrestricted ✓" else "Battery: restricted (tap above)"
 
+/**
+ * vivo doesn't expose the auto-start / "Associated startup" state to apps, so [acknowledged] is only
+ * a record that the user was sent to that screen — never proof the toggles are actually on.
+ */
+fun autoStartStatusText(acknowledged: Boolean): String =
+    if (acknowledged) {
+        "Auto-start + Associated startup: opened ✓ (vivo won't let us verify — check it's still on)"
+    } else {
+        "Auto-start + Associated startup: not confirmed (tap above)"
+    }
+
 fun requestIgnoreBattery(context: Context) {
     if (isBatteryUnrestricted(context)) return
     runCatching {
@@ -54,24 +65,33 @@ fun requestIgnoreBattery(context: Context) {
 }
 
 /**
- * OriginOS keeps a separate "auto-start" allow-list (Settings → Battery → Auto-start) that can't be
- * queried programmatically. Try the known vivo manager screen; fall back to the app's own details
- * page so the user can find the equivalent setting themselves.
+ * OriginOS keeps "Autostart" and "Associated startup" together on a per-app "Device management"
+ * page, neither of them readable by apps — see [autoStartStatusText].
+ *
+ * Deep-link straight to that page instead of dumping the user in the global background-start-up
+ * list to hunt for Origin Isle. It's SoftPermissionDetailActivity, which takes its target from a
+ * "packagename" string extra and calls finish() immediately if that extra is missing or names a
+ * package it can't resolve (read off PermissionManager.apk and confirmed on an X200 Pro). Since the
+ * package we pass is our own, it's always resolvable. The remaining fallbacks cover vivo builds
+ * that don't ship the same activity, where startActivity throws instead.
  */
 fun openAutoStartSettings(context: Context) {
-    runCatching {
-        context.startActivity(
-            Intent().setClassName(
+    val targets = listOf(
+        Intent("permission.intent.action.softPermissionDetail")
+            .setClassName(
                 "com.vivo.permissionmanager",
-                "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-    }.onFailure {
-        runCatching {
-            context.startActivity(
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity",
             )
-        }
+            .putExtra("packagename", context.packageName),
+        Intent().setClassName(
+            "com.vivo.permissionmanager",
+            "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+        ),
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
+    )
+    targets.firstOrNull { intent ->
+        runCatching {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }.isSuccess
     }
 }
