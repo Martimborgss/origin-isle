@@ -141,12 +141,15 @@ class PlaygroundService : Service() {
             .build()
         // Both calls can throw: the onTaskRemoved alarm starts this service from the background, and
         // that is only allowed while the app holds the battery-optimisation exemption (which
-        // onboarding lets the user skip). Failing to go foreground must not take the process down.
+        // onboarding lets the user skip).
         isForegroundActive = runCatching {
             startForeground(FGS_ID, n, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         }.recoverCatching {
             startForeground(FGS_ID, n)
         }.isSuccess
+        // Catching isn't enough to survive it: that alarm uses startForegroundService(), so the
+        // system kills us anyway unless we either go foreground or stop. Stop cleanly instead.
+        if (!isForegroundActive) stopSelf()
     }
 
     // --- posting -----------------------------------------------------------------
@@ -450,6 +453,9 @@ class PlaygroundService : Service() {
                 notificationManager.cancel(OriginIslandConstants.SUPERX_TAG, it)
                 notificationManager.cancel(it)
             }
+            // Clear the flag with the teardown, or a start arriving before we're destroyed sees a
+            // stale "already foreground" and skips ensureForeground(), leaving the process unanchored.
+            isForegroundActive = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
