@@ -40,7 +40,7 @@ object SportsCard {
      * sits there with a stale final score. Without an explicit timer, our card would sit on the
      * island forever too. Keep the final result up for a while, then auto-clear it.
      */
-    private const val FULL_TIME_AUTO_CLEAR_MS = 5 * 60 * 1000L
+    private const val FULL_TIME_AUTO_CLEAR_MS = 60 * 1000L
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -62,6 +62,10 @@ object SportsCard {
      */
     private val clearTokens = ConcurrentHashMap<Int, Any>()
     private fun tokenFor(id: Int): Any = clearTokens.getOrPut(id) { Any() }
+
+    /** Whether an FT auto-clear is currently scheduled for an id — so a redundant repost of the same
+     *  FT state (see [post]) doesn't push the clear time back out by rescheduling on top of it. */
+    private val ftClearScheduled = ConcurrentHashMap<Int, Boolean>()
 
     /**
      * Show or update a football score card.
@@ -86,6 +90,7 @@ object SportsCard {
         clickResp: PendingIntent? = null,
     ) {
         val crowded = isCrowded(context, id)
+        val prev = lastPosts[id]
         lastPosts[id] = PostArgs(
             home, homeScore, away, awayScore, clock, competition, id,
             homeLogo, awayLogo, centerLogo, clickResp, crowded,
@@ -159,9 +164,22 @@ object SportsCard {
         // Any update for this match (extra time, a late correction) cancels a pending auto-clear.
         // Once the match reaches full time, schedule one: the source app's own notification often
         // just sits there unchanged after FT, so nothing would otherwise ever dismiss this card.
-        handler.removeCallbacksAndMessages(tokenFor(id))
-        if (clock == "FT") {
-            handler.postDelayed({ clear(context, id) }, tokenFor(id), FULL_TIME_AUTO_CLEAR_MS)
+        //
+        // Only touch the timer on a genuine state change, not on every call — this is now polled
+        // (see NotificationCastListener's score-app poll fallback), so a redundant repost of the exact
+        // same FT score/clock must NOT push the clear-time back out, or it would never fire at all.
+        val stateChanged = prev == null || prev.clock != clock ||
+            prev.homeScore != homeScore || prev.awayScore != awayScore
+        if (stateChanged) {
+            handler.removeCallbacksAndMessages(tokenFor(id))
+            ftClearScheduled.remove(id)
+        }
+        if (clock == "FT" && ftClearScheduled[id] != true) {
+            ftClearScheduled[id] = true
+            handler.postDelayed({
+                ftClearScheduled.remove(id)
+                clear(context, id)
+            }, tokenFor(id), FULL_TIME_AUTO_CLEAR_MS)
         }
     }
 
@@ -212,6 +230,7 @@ object SportsCard {
         lastPosts.remove(id)
         handler.removeCallbacksAndMessages(tokenFor(id))
         clearTokens.remove(id)
+        ftClearScheduled.remove(id)
         context.startService(
             Intent(context, PlaygroundService::class.java)
                 .setAction(PlaygroundService.ACTION_CANCEL)

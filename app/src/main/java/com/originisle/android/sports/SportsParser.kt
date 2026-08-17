@@ -47,6 +47,13 @@ object SportsParser {
 
     /** A short match-status string: a numeric minute if present, else HT/FT/1st half/… */
     private fun statusOf(s: String): String {
+        val l0 = s.lowercase()
+        // A post-match "recap"/"highlights" notification (e.g. Google's "Watch match recap") is
+        // unambiguously finished, even though it carries none of the FT/full-time wording below — it's
+        // often just "<team> <score> - <score> <team> · <past date>". Check this FIRST: a recap's score
+        // line has no apostrophe-suffixed digits, but treating it as FT here (before the general
+        // wording checks) is the reliable signal, not an absence-of-minute-marker guess.
+        if (l0.contains("recap") || l0.contains("highlights")) return "FT"
         // Extra-time form ("90+2'") first, or the same "drops the 90+" bug as MINUTE above.
         Regex("""(?:\d{1,3}\+\d{1,2}|\d{1,3})\s*['’]""").find(s)
             ?.let { return it.value.replace("’", "'").replace(" ", "") }

@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import com.originisle.android.cards.SportsCard
 import com.originisle.android.island.PlaygroundService
 import com.originisle.android.service.NotificationCastListener
 import com.originisle.android.ui.samples.IslandSamples
+import kotlinx.coroutines.launch
 
 @Composable
 fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit) {
@@ -59,6 +61,8 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
     val batteryOk = remember { isBatteryUnrestricted(context) }
     var setupExpanded by remember { mutableStateOf(!listenerOk || !batteryOk) }
     var samplesExpanded by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -179,21 +183,41 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                 modifier = Modifier.fillMaxWidth(),
                 enabled = castOn || mediaOn,
             ) { Text("Recast all notifications now") }
-            Text(
-                "Sweeps every notification currently on the phone and casts the supported ones " +
-                    "(downloads, navigation, calls, media, live scores) to the island.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { SportsCard.clear(context) }, modifier = Modifier.weight(1f)) {
-                    Text("Clear football")
-                }
-                OutlinedButton(onClick = { stopAll(context) }, modifier = Modifier.weight(1f)) {
-                    Text("Stop all cards")
+            Column {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            updateStatus = "Checking…"
+                            updateStatus = when (val result = UpdateChecker.check(context)) {
+                                is UpdateChecker.Result.UpToDate ->
+                                    "You're on the latest version (v${result.current})."
+                                is UpdateChecker.Result.UpdateAvailable -> {
+                                    UpdateChecker.openRelease(context, result.url)
+                                    "Update available: v${result.latest} — opening GitHub…"
+                                }
+                                is UpdateChecker.Result.Error -> result.message
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Check for updates") }
+                updateStatus?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
+        }
+        item {
+            Button(
+                onClick = { stopAll(context)  },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = true,
+            ) { Text("Stop all cards") }
         }
         item {
             HorizontalDivider()
@@ -202,7 +226,7 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Sample cards (tester)", fontWeight = FontWeight.SemiBold)
+                Text("Sample cards", fontWeight = FontWeight.SemiBold)
                 Text(if (samplesExpanded) "▲" else "▼", style = MaterialTheme.typography.bodySmall)
             }
         }
