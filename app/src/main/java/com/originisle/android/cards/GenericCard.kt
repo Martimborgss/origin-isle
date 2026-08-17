@@ -53,14 +53,21 @@ object GenericCard {
         val indeterminate = extras.getBoolean(NotificationCompat.EXTRA_PROGRESS_INDETERMINATE, false)
         val hasProgress = progressMax > 0 && !indeterminate
 
-        // Chip text: chronometer elapsed -> percentage -> short critical text.
+        // Chip text: chronometer elapsed -> short critical text -> percentage.
+        //
+        // The percentage is LAST on purpose. Android 16 Live Updates post a progress bar and a
+        // purpose-built short chip string together by design, so a navigation notification carries
+        // both "2 min" and a journey progress bar — synthesising "43%" from the bar and ignoring the
+        // OS's own string threw away the better text.
         val showChrono = extras.getBoolean(NotificationCompat.EXTRA_SHOW_CHRONOMETER, false)
+        val percentText = if (hasProgress) "${progress * 100 / progressMax}%" else ""
+        // "android.shortCriticalText" (Android 16 promoted-notification chip); read by raw key
+        // so it works even when the compiled core library predates the typed constant.
+        val shortCritical = extras.getCharSequence("android.shortCriticalText")?.toString()?.trim().orEmpty()
         val chip = when {
             showChrono && n.`when` > 0 -> formatElapsed(abs(System.currentTimeMillis() - n.`when`) / 1000)
-            hasProgress -> "${progress * 100 / progressMax}%"
-            // "android.shortCriticalText" (Android 16 promoted-notification chip); read by raw key
-            // so it works even when the compiled core library predates the typed constant.
-            else -> extras.getCharSequence("android.shortCriticalText")?.toString().orEmpty()
+            shortCritical.isNotBlank() -> shortCritical
+            else -> percentText
         }
 
         n.smallIcon?.let { IconCache.activeSmallIcons[id] = it }
@@ -85,6 +92,13 @@ object GenericCard {
         // Maps: keep the maneuver (title) on the left and the distance/ETA (text) in the pill,
         // so the next turn is visible without expanding the card.
         val finalChip = if (isMaps) text.ifBlank { chip } else style?.chip ?: chip
+        // The island's progress ring (right-template 2) has NO content key — buildBundle writes
+        // progressValue/colors and nothing else — so routing a card there DISCARDS oi_right_content
+        // entirely. Only take the ring when the chip is nothing more than the percentage the ring
+        // already draws; anything real (a distance, an ETA, a shortCriticalText) belongs in the
+        // capsule instead. This is what made Maps show a bare ring on an Android 16 base while an
+        // older one showed the distance: same APK, opposite pill, purely from progressMax > 0.
+        val ringSaysItAll = finalChip.isBlank() || finalChip == percentText
 
         val intent = Intent(context, PlaygroundService::class.java).apply {
             action = PlaygroundService.ACTION_START
@@ -117,12 +131,19 @@ object GenericCard {
                     putExtra("oi_template", style.template)
                     putExtra("oi_right_template", style.rightTemplate)
                 }
-                hasProgress -> {
+                hasProgress && ringSaysItAll -> {
                     putExtra("oi_template", OriginIslandConstants.TEMPLATE_BASE)                 // 4
                     putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_PROGRESS) // 2
                     putExtra("show_progress", true)
                     putExtra("progress", progress)
                     putExtra("progress_max", progressMax)
+                }
+                // Progress bar AND text worth reading: the capsule wins, and oi_left_content keeps
+                // the title — for Maps that's the maneuver on the left with the distance/ETA in the
+                // pill, which is exactly what the isMaps branch above was written to produce.
+                hasProgress -> {
+                    putExtra("oi_template", OriginIslandConstants.TEMPLATE_BASE)                     // 4
+                    putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT) // 6
                 }
                 else -> {
                     putExtra("oi_left_content", "")

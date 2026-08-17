@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit) {
     var castOn by remember { mutableStateOf(prefs.getBoolean("cast_notifications", false)) }
     var mediaOn by remember { mutableStateOf(prefs.getBoolean("cast_media_sessions", false)) }
+    var navCardOn by remember { mutableStateOf(prefs.getBoolean("cast_navigation_card", false)) }
     var includeMessages by remember { mutableStateOf(prefs.getBoolean("cast_include_messages", false)) }
     var ignoreSilent by remember { mutableStateOf(prefs.getBoolean("cast_ignore_silent", true)) }
     var lockscreenLiveCard by remember { mutableStateOf(prefs.getBoolean("cast_lockscreen_live_card", false)) }
@@ -89,6 +90,14 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                     }
                     Text(
                         "Mimic OriginPlayer for media Apps.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    ToggleRow("Driving navigation card", navCardOn) {
+                        navCardOn = it; prefs.edit().putBoolean("cast_navigation_card", it).apply()
+                    }
+                    Text(
+                        "Experimental. Maps and Waze use vivo's own navigation card instead of the " +
+                            "generic one. Try \"Driving navigation\" in the samples below first.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     ToggleRow("Cast non live notifications", includeMessages) {

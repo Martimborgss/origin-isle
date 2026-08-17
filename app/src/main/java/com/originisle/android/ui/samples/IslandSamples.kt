@@ -140,6 +140,35 @@ object IslandSamples {
                 putExtra("icon_res", R.drawable.ic_call)
             }
         },
+        OriginSample("Driving navigation", "Driving-navi template · maneuver + street + ETA") { ctx ->
+            // The template the real NavigationCard posts. Unproven on hardware: if nothing appears,
+            // OriginOS rejected template 9 and the Cast tab's navigation toggle should stay off.
+            start(ctx, 40011) {
+                putExtra("oi_scene", "NAVIGATION")
+                putExtra("oi_template", OriginIslandConstants.TEMPLATE_DRIVING_NAVI)
+                putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT)
+                putExtra("title", "350 m")
+                putExtra("text", "Rue de Rivoli")
+                putExtra("oi_nav_msg", "12 min · 4,5 km · 14:32")
+                putExtra("oi_nav_assist", "Keep left")
+                putExtra("oi_left_content", "350 m")
+                putExtra("status_chip_text", "12 min")
+                putExtra("icon_res", R.drawable.ic_navigation)
+            }
+        },
+        OriginSample("Navigation message", "Navigation template · nav icon + single message line") { ctx ->
+            start(ctx, 40012) {
+                putExtra("oi_scene", "NAVIGATION")
+                putExtra("oi_template", OriginIslandConstants.TEMPLATE_NAVIGATION)
+                putExtra("oi_right_template", OriginIslandConstants.TEMPLATE_RIGHT_ISLAND_CAPSULE_TEXT)
+                putExtra("title", "Turn right")
+                putExtra("text", "onto Quai des Tuileries")
+                putExtra("oi_nav_msg", "Turn right onto Quai des Tuileries · 2 min")
+                putExtra("oi_left_content", "Turn right")
+                putExtra("status_chip_text", "2 min")
+                putExtra("icon_res", R.drawable.ic_navigation)
+            }
+        },
         OriginSample("Two buttons", "Buttons template · Deny / Receive") { ctx ->
             start(ctx, 40010) {
                 putExtra("oi_scene", "NAVIGATION")
