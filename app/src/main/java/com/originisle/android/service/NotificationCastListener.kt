@@ -89,6 +89,11 @@ class NotificationCastListener : NotificationListenerService() {
          * to build a card from, and it is byte-identical whether Waze is navigating or merely open,
          * so there's nothing to key a "navigating" card off either. Waze renders its turn banner
          * inside its own app and publishes none of it to the notification system.
+         *
+         * This only steers Waze away from [NavigationCard] — it still falls through to the generic
+         * ongoing card below, same as any other app's plain foreground-service notice. No special
+         * filtering for that pattern: a user who doesn't want it can turn Waze off in the Apps tab,
+         * the same way they'd opt out of any other app's notifications.
          */
         private val NAV_APPS = setOf(
             "com.google.android.apps.maps", // Google Maps
@@ -305,14 +310,6 @@ class NotificationCastListener : NotificationListenerService() {
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
         val isLive = isOngoing || isCall || hasProgress
 
-        // "App is running" foreground-service notices carry nothing worth a card — and because they
-        // stay up for as long as the app is alive, casting one pins a permanently stale card to the
-        // island. Dropped before the navigation check so a nav app that tags one of these with
-        // CATEGORY_NAVIGATION (Waze's is the known case) can't turn it into an empty driving card.
-        if (isRunningPlaceholder(sbn, isOngoing, isCall)) {
-            log(sbn, "skipped — foreground-service placeholder (no content)", false); return
-        }
-
         // Turn-by-turn navigation -> vivo's own driving card (template 9) instead of the generic one.
         if (isNavigation(sbn, isOngoing)) {
             log(sbn, "cast — navigation", true)
@@ -342,33 +339,6 @@ class NotificationCastListener : NotificationListenerService() {
         }
         log(sbn, "cast — $kind", true)
         GenericCard.post(applicationContext, sbn, isLive)
-    }
-
-    /**
-     * Whether [sbn] is a notification an app keeps up purely to say it's running — the classic
-     * foreground-service notice, e.g. Waze's "Waze / Running. Tap to open." Recognised by carrying
-     * no content of its own beyond the app's own name: no distinct title, no subtext, no big text,
-     * no large icon, no progress, no chronometer, no promoted-chip text.
-     *
-     * Calls are exempt (a CallStyle notification is legitimately titled with the caller, and its
-     * content lives in fields this doesn't look at), and so is anything non-ongoing — a one-off
-     * message titled with the app's name is a real message, not a keep-alive notice.
-     */
-    private fun isRunningPlaceholder(sbn: StatusBarNotification, isOngoing: Boolean, isCall: Boolean): Boolean {
-        if (!isOngoing || isCall) return false
-        val extras = sbn.notification.extras
-        val title = extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString()?.trim().orEmpty()
-        // A blank title is NOT this pattern: Maps deliberately blanks the title on the first frames
-        // of a journey while the rest of the notification is real turn data.
-        if (title.isBlank() || !title.equals(appLabel(sbn.packageName), ignoreCase = true)) return false
-
-        val hasSubText = !extras.getCharSequence(NotificationCompat.EXTRA_SUB_TEXT)?.toString()?.trim().isNullOrBlank()
-        val hasBigText = !extras.getCharSequence(NotificationCompat.EXTRA_BIG_TEXT)?.toString()?.trim().isNullOrBlank()
-        val hasCritical = !extras.getCharSequence("android.shortCriticalText")?.toString()?.trim().isNullOrBlank()
-        val hasLargeIcon = extras.get(NotificationCompat.EXTRA_LARGE_ICON) != null
-        val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
-        val hasChrono = extras.getBoolean(NotificationCompat.EXTRA_SHOW_CHRONOMETER, false)
-        return !hasSubText && !hasBigText && !hasCritical && !hasLargeIcon && !hasProgress && !hasChrono
     }
 
     /** The user-visible name of [pkg], or the package name if it can't be resolved. */
