@@ -26,7 +26,7 @@ This is a hobby project, not an official vivo/iQOO/OriginOS product.
 
 | Island - mimic OriginPlayer                 |
 |---------------------------------------------|
-| ![Music Player](docs/screenshots/media.jpg) |
+| <img src="docs/screenshots/media.jpg" width="300"> |
 
 ## What it does
 
@@ -46,7 +46,7 @@ This is a hobby project, not an official vivo/iQOO/OriginOS product.
 
 - **This only works on vivo/iQOO phones running OriginOS 6.** .
 - **Enable OriginOS Navigation first.**
-  ![Navigation setting](docs/screenshots/pre-req.jpg)
+  <img src="docs/screenshots/pre-req.jpg" width="300">
 - **It can't be installed alongside the real AMap (高德地图) app.** See [docs/DEV.md](docs/DEV.md) for the full explanation.
 - **It reads your notifications**, so ONLY install it from this repo's Releases page.
 
