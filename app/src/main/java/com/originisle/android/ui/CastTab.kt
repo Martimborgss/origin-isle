@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,11 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
     val listenerOk = remember(tick.intValue) { isListenerEnabled(context) }
     val batteryOk = remember(tick.intValue) { isBatteryUnrestricted(context) }
     var setupExpanded by remember { mutableStateOf(!listenerOk || !batteryOk) }
+    // Re-open on resume when something has broken since, or the card stays collapsed over a status
+    // line saying access is gone. Only ever expands — collapsing stays the user's call.
+    LaunchedEffect(listenerOk, batteryOk) {
+        if (!listenerOk || !batteryOk) setupExpanded = true
+    }
     var samplesExpanded by remember { mutableStateOf(false) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
@@ -169,9 +175,10 @@ fun CastTab(context: Context, prefs: SharedPreferences, onRedoSetup: () -> Unit)
                         )
                         OutlinedButton(
                             onClick = {
-                                openAutoStartSettings(context)
-                                autoStartAck = true
-                                prefs.edit().putBoolean("onboarding_autostart_ack", true).apply()
+                                if (openAutoStartSettings(context)) {
+                                    autoStartAck = true
+                                    prefs.edit().putBoolean("onboarding_autostart_ack", true).apply()
+                                }
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Autostart + Associated startup") }

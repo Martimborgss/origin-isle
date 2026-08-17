@@ -83,6 +83,14 @@ class PlaygroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A null intent is a START_STICKY relaunch and ACTION_KEEPALIVE is the alarm/UI anchor
+        // request: both only mean "stay up", which is pointless once casting is off. Explicit card
+        // actions still work with it off, so the sample buttons are unaffected.
+        if ((intent == null || intent.action == ACTION_KEEPALIVE) && !isCastingEnabled()) {
+            cancelRestartAlarm()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         ensureForeground()
         try {
             when (intent?.action) {
@@ -105,17 +113,42 @@ class PlaygroundService : Service() {
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        // With casting off there is nothing to come back for, and arming the alarm would revive the
+        // service a second after the user swiped it away — for good, since nothing else stops it.
+        if (!isCastingEnabled()) {
+            cancelRestartAlarm()
+            stopSelf()
+            return
+        }
         runCatching { ensureForeground() }
         runCatching {
-            val restart = PendingIntent.getForegroundService(
-                this,
-                RESTART_REQUEST,
-                Intent(this, PlaygroundService::class.java).setAction(ACTION_KEEPALIVE),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            getSystemService(AlarmManager::class.java)?.set(
-                AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000L, restart,
-            )
+            restartAlarmIntent(PendingIntent.FLAG_UPDATE_CURRENT)?.let { restart ->
+                getSystemService(AlarmManager::class.java)?.set(
+                    AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000L, restart,
+                )
+            }
+        }
+    }
+
+    /** Matches the listener's own gate — either card source keeps the service worth running. */
+    private fun isCastingEnabled(): Boolean = getSharedPreferences(PREFS_NAME, 0).let {
+        it.getBoolean("cast_notifications", false) || it.getBoolean("cast_media_sessions", false)
+    }
+
+    /** [flags] picks between arming (FLAG_UPDATE_CURRENT) and looking one up (FLAG_NO_CREATE). */
+    private fun restartAlarmIntent(flags: Int): PendingIntent? = PendingIntent.getForegroundService(
+        this,
+        RESTART_REQUEST,
+        Intent(this, PlaygroundService::class.java).setAction(ACTION_KEEPALIVE),
+        flags or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun cancelRestartAlarm() {
+        runCatching {
+            restartAlarmIntent(PendingIntent.FLAG_NO_CREATE)?.let {
+                getSystemService(AlarmManager::class.java)?.cancel(it)
+                it.cancel()
+            }
         }
     }
 
@@ -438,6 +471,8 @@ class PlaygroundService : Service() {
     }
 
     private fun stopEverything() {
+        // An explicit stop must not be undone by an alarm a previous swipe left armed.
+        cancelRestartAlarm()
         autoDismissTasks.values.forEach { mainHandler.removeCallbacks(it) }
         autoDismissTasks.clear()
         val hadScenes = originScenes.isNotEmpty()

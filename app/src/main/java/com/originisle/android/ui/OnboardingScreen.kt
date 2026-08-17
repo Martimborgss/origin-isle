@@ -95,8 +95,9 @@ fun OnboardingScreen(context: Context, prefs: SharedPreferences, onDone: () -> U
             }
             item {
                 OnboardingRow(
-                    title = "Keep-alive (no status-bar icon)",
-                    description = "Runs in the background invisibly.",
+                    title = "Keep-alive",
+                    description = "Reconnects casting when OriginOS restarts the app, instead of " +
+                        "waiting for you to open it.",
                     granted = accessOk,
                     mandatory = false,
                 ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
@@ -117,9 +118,12 @@ fun OnboardingScreen(context: Context, prefs: SharedPreferences, onDone: () -> U
                     granted = autoStartAck,
                     mandatory = false,
                 ) {
-                    openAutoStartSettings(context)
-                    autoStartAck = true
-                    prefs.edit().putBoolean("onboarding_autostart_ack", true).apply()
+                    // Only ack if a screen actually opened — a ✓ the user never saw is worse than
+                    // no ✓ for the one setting that decides whether casting survives a swipe-away.
+                    if (openAutoStartSettings(context)) {
+                        autoStartAck = true
+                        prefs.edit().putBoolean("onboarding_autostart_ack", true).apply()
+                    }
                 }
             }
             item {

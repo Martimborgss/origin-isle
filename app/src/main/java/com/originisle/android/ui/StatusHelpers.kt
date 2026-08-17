@@ -58,8 +58,15 @@ fun isBatteryUnrestricted(context: Context): Boolean {
 fun listenerStatusText(context: Context): String =
     if (isListenerEnabled(context)) "Notification access: granted ✓" else "Notification access: NOT granted"
 
+// Not about the status-bar icon any more: the foreground service now always starts (its icon is
+// hidden by the IMPORTANCE_NONE channel instead), so what this service still buys is the rebind it
+// fires from onServiceConnected whenever OriginOS restarts the process.
 fun accessibilityStatusText(context: Context): String =
-    if (isAccessibilityEnabled(context)) "Keep-alive: on ✓ (no status-bar icon)" else "Keep-alive: off (status-bar icon shows)"
+    if (isAccessibilityEnabled(context)) {
+        "Keep-alive: on ✓ (reconnects casting after a kill)"
+    } else {
+        "Keep-alive: off (slower to recover after a kill)"
+    }
 
 fun batteryStatusText(context: Context): String =
     if (isBatteryUnrestricted(context)) "Battery: unrestricted ✓" else "Battery: restricted (tap above)"
@@ -95,8 +102,12 @@ fun requestIgnoreBattery(context: Context) {
  * startup", rather than the global list the user would have to hunt through. The activity takes its
  * target from a "packagename" extra and silently finishes if that's missing or unresolvable. The
  * fallbacks cover vivo builds without it, where startActivity throws instead.
+ *
+ * Returns whether anything was launched. Only [Settings.ACTION_APPLICATION_DETAILS_SETTINGS] is
+ * guaranteed to exist, so false means the device has no reachable screen at all — but true is not
+ * proof the user saw the right one, hence the hedged wording in [autoStartStatusText].
  */
-fun openAutoStartSettings(context: Context) {
+fun openAutoStartSettings(context: Context): Boolean {
     val targets = listOf(
         Intent("permission.intent.action.softPermissionDetail")
             .setClassName(
@@ -110,7 +121,7 @@ fun openAutoStartSettings(context: Context) {
         ),
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")),
     )
-    targets.firstOrNull { intent ->
+    return targets.any { intent ->
         runCatching {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }.isSuccess

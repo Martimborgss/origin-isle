@@ -86,13 +86,17 @@ class NotificationCastListener : NotificationListenerService() {
             val now = System.currentTimeMillis()
             if (now - lastRebindAt < REBIND_THROTTLE_MS) return RebindResult.REBINDING
 
+            // Separate runCatching per step: the re-enable must be attempted even if the disable
+            // threw. See [ensureEnabled] for why being left disabled is unrecoverable.
             val pm = context.applicationContext.packageManager
-            val toggled = runCatching {
+            val disabled = runCatching {
                 pm.setComponentEnabledSetting(
                     component,
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP,
                 )
+            }.isSuccess
+            val enabled = runCatching {
                 pm.setComponentEnabledSetting(
                     component,
                     PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
@@ -101,12 +105,36 @@ class NotificationCastListener : NotificationListenerService() {
             }.isSuccess
             // Only arm the throttle once the toggle actually landed, so a failure doesn't leave the
             // next 10s of taps reporting "rebinding" when nothing is.
-            if (!toggled) return RebindResult.FAILED
+            if (!disabled || !enabled) return RebindResult.FAILED
             lastRebindAt = now
             // After the toggle the component IS considered unbound, so this call is no longer a
             // no-op and can shortcut the wait for the package broadcast to land.
             runCatching { requestRebind(component) }
             return RebindResult.REBINDING
+        }
+
+        /**
+         * Undo a [forceRebind] that only got halfway — the process can die between its two calls,
+         * and DONT_KILL_APP only stops PackageManager from killing us, not OriginOS. A component
+         * left DISABLED persists across reboots and never binds again, while the grant it's checked
+         * against lives in Settings.Secure and still reads as granted, so the UI would show a
+         * healthy listener forever. Called on every process start.
+         */
+        fun ensureEnabled(context: Context) {
+            val pm = context.applicationContext.packageManager
+            val component = ComponentName(context.applicationContext, NotificationCastListener::class.java)
+            runCatching {
+                if (pm.getComponentEnabledSetting(component) ==
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                ) {
+                    Log.w(TAG, "listener component was left disabled by a partial rebind — re-enabling")
+                    pm.setComponentEnabledSetting(
+                        component,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP,
+                    )
+                }
+            }
         }
 
         private const val PREFS = "experimental_prefs"
