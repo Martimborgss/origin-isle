@@ -12,8 +12,12 @@ import com.originisle.android.island.PlaygroundService
 import com.originisle.android.service.IconCache
 
 /**
- * Turn-by-turn navigation (Maps, Waze, anything posting `CATEGORY_NAVIGATION`) cast onto vivo's
- * own driving-navigation card — template 9 — instead of the generic base card.
+ * Turn-by-turn navigation (Maps, anything posting `CATEGORY_NAVIGATION`) cast onto vivo's own
+ * driving-navigation card — template 9 — instead of the generic base card.
+ *
+ * Waze is not among them: it publishes no turn data to the notification system at all (see
+ * `NAV_APPS` in [com.originisle.android.service.NotificationCastListener]), so there is nothing
+ * here to build a card from.
  *
  * Template 9 is what OriginOS uses for its native navigation island: a highlighted maneuver line, a
  * normal-weight street line under it, a sub-text lane for the journey summary, and the maneuver

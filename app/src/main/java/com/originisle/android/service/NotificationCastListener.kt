@@ -79,12 +79,24 @@ class NotificationCastListener : NotificationListenerService() {
 
         /**
          * Turn-by-turn navigation apps. Most set [Notification.CATEGORY_NAVIGATION] and are matched
-         * on that alone; these two are listed by package because they're the ones worth casting even
-         * on a build that doesn't set the category.
+         * on that alone; Maps is listed by package because it's worth casting even on a build that
+         * doesn't set the category.
+         *
+         * Waze is deliberately NOT here. Its only notification is a `CLOSE_WAZE_CHANNEL`
+         * foreground-service notice — title "Waze", text "Running. Tap to open.", one "Switch off"
+         * action — with no subText, no large icon, no `shortCriticalText` and all three RemoteViews
+         * slots null (verified against `dumpsys notification --noredact`). It carries no turn data
+         * to build a card from, and it is byte-identical whether Waze is navigating or merely open,
+         * so there's nothing to key a "navigating" card off either. Waze renders its turn banner
+         * inside its own app and publishes none of it to the notification system.
+         *
+         * This only steers Waze away from [NavigationCard] — it still falls through to the generic
+         * ongoing card below, same as any other app's plain foreground-service notice. No special
+         * filtering for that pattern: a user who doesn't want it can turn Waze off in the Apps tab,
+         * the same way they'd opt out of any other app's notifications.
          */
         private val NAV_APPS = setOf(
             "com.google.android.apps.maps", // Google Maps
-            "com.waze",                     // Waze
         )
 
         /** Wallet / bank / money apps whose notifications are treated as payments (Apple-Pay card). */
@@ -213,9 +225,7 @@ class NotificationCastListener : NotificationListenerService() {
     private fun log(sbn: StatusBarNotification, outcome: String, cast: Boolean) {
         lastEventAt = System.currentTimeMillis()
         if (lastOutcome.put(sbn.key, outcome) == outcome) return
-        val app = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
-        }.getOrDefault(sbn.packageName)
+        val app = appLabel(sbn.packageName)
         val title = sbn.notification.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
         CastLog.add(app, title, outcome, cast)
     }
@@ -331,14 +341,19 @@ class NotificationCastListener : NotificationListenerService() {
         GenericCard.post(applicationContext, sbn, isLive)
     }
 
+    /** The user-visible name of [pkg], or the package name if it can't be resolved. */
+    private fun appLabel(pkg: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault(pkg)
+
     /**
      * Whether [sbn] is an active turn-by-turn navigation notification, i.e. one [NavigationCard]
      * can build a driving card out of.
      *
-     * The category is the reliable signal and picks up Waze, Organic Maps, Sygic and the rest for
-     * free. The package check is the fallback for builds that don't set it — but it additionally
-     * demands real text, because Maps also keeps a bare ongoing "Maps is running" notification alive
-     * with nothing in it, and a driving card built from that is an empty card.
+     * The category is the reliable signal and picks up Organic Maps, Sygic and the rest for free.
+     * The package check is the fallback for builds that don't set it — but it additionally demands
+     * real text, because Maps also keeps a bare ongoing "Maps is running" notification alive with
+     * nothing in it, and a driving card built from that is an empty card.
      */
     private fun isNavigation(sbn: StatusBarNotification, isOngoing: Boolean): Boolean {
         if (!isOngoing) return false
@@ -466,11 +481,8 @@ class NotificationCastListener : NotificationListenerService() {
             val ai = packageManager.getApplicationInfo(sbn.packageName, 0)
             Icon.createWithResource(sbn.packageName, ai.icon)
         }.getOrNull()
-        val appLabel = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
-        }.getOrDefault(sbn.packageName)
         val click = sbn.notification.contentIntent ?: fallbackClickIntent(applicationContext, sbn.packageName)
-        PaymentCard.post(applicationContext, id, appIcon, info.amount, info.merchant, appLabel, click)
+        PaymentCard.post(applicationContext, id, appIcon, info.amount, info.merchant, appLabel(sbn.packageName), click)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {

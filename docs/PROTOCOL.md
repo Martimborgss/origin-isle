@@ -83,8 +83,15 @@ alternative in practice.
 ### The navigation templates (5 and 9)
 
 Templates 5 and 9 exist for turn-by-turn navigation. `NavigationCard` posts template 9 unconditionally
-for any recognised navigation notification (Maps, Waze, anything with `CATEGORY_NAVIGATION`) — no
-toggle, it's the default path. Template 5 isn't posted by any card yet; only the in-app sample exists.
+for any recognised navigation notification (Maps, anything with `CATEGORY_NAVIGATION`) — no toggle,
+it's the default path. Template 5 isn't posted by any card yet; only the in-app sample exists.
+
+Waze's driving card can't be supported: its sole notification is a foreground-service notice ("Waze /
+Running. Tap to open.") with no subtext, no large icon and all three RemoteViews slots null, identical
+whether it is navigating or just open. There is no turn data to read, so Waze is left out of `NAV_APPS`
+rather than fed to `NavigationCard` as an empty driving card — it still casts as an ordinary generic
+card, same as any other app's plain foreground-service notice. Turn it off in the Apps tab if you don't
+want that.
 
 | Key | Template | Carries |
 |---|---|---|
