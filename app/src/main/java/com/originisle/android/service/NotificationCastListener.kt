@@ -79,12 +79,19 @@ class NotificationCastListener : NotificationListenerService() {
 
         /**
          * Turn-by-turn navigation apps. Most set [Notification.CATEGORY_NAVIGATION] and are matched
-         * on that alone; these two are listed by package because they're the ones worth casting even
-         * on a build that doesn't set the category.
+         * on that alone; Maps is listed by package because it's worth casting even on a build that
+         * doesn't set the category.
+         *
+         * Waze is deliberately NOT here. Its only notification is a `CLOSE_WAZE_CHANNEL`
+         * foreground-service notice — title "Waze", text "Running. Tap to open.", one "Switch off"
+         * action — with no subText, no large icon, no `shortCriticalText` and all three RemoteViews
+         * slots null (verified against `dumpsys notification --noredact`). It carries no turn data
+         * to build a card from, and it is byte-identical whether Waze is navigating or merely open,
+         * so there's nothing to key a "navigating" card off either. Waze renders its turn banner
+         * inside its own app and publishes none of it to the notification system.
          */
         private val NAV_APPS = setOf(
             "com.google.android.apps.maps", // Google Maps
-            "com.waze",                     // Waze
         )
 
         /** Wallet / bank / money apps whose notifications are treated as payments (Apple-Pay card). */
@@ -213,9 +220,7 @@ class NotificationCastListener : NotificationListenerService() {
     private fun log(sbn: StatusBarNotification, outcome: String, cast: Boolean) {
         lastEventAt = System.currentTimeMillis()
         if (lastOutcome.put(sbn.key, outcome) == outcome) return
-        val app = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
-        }.getOrDefault(sbn.packageName)
+        val app = appLabel(sbn.packageName)
         val title = sbn.notification.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
         CastLog.add(app, title, outcome, cast)
     }
@@ -300,6 +305,14 @@ class NotificationCastListener : NotificationListenerService() {
         val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
         val isLive = isOngoing || isCall || hasProgress
 
+        // "App is running" foreground-service notices carry nothing worth a card — and because they
+        // stay up for as long as the app is alive, casting one pins a permanently stale card to the
+        // island. Dropped before the navigation check so a nav app that tags one of these with
+        // CATEGORY_NAVIGATION (Waze's is the known case) can't turn it into an empty driving card.
+        if (isRunningPlaceholder(sbn, isOngoing, isCall)) {
+            log(sbn, "skipped — foreground-service placeholder (no content)", false); return
+        }
+
         // Turn-by-turn navigation -> vivo's own driving card (template 9) instead of the generic one.
         if (isNavigation(sbn, isOngoing)) {
             log(sbn, "cast — navigation", true)
@@ -332,13 +345,45 @@ class NotificationCastListener : NotificationListenerService() {
     }
 
     /**
+     * Whether [sbn] is a notification an app keeps up purely to say it's running — the classic
+     * foreground-service notice, e.g. Waze's "Waze / Running. Tap to open." Recognised by carrying
+     * no content of its own beyond the app's own name: no distinct title, no subtext, no big text,
+     * no large icon, no progress, no chronometer, no promoted-chip text.
+     *
+     * Calls are exempt (a CallStyle notification is legitimately titled with the caller, and its
+     * content lives in fields this doesn't look at), and so is anything non-ongoing — a one-off
+     * message titled with the app's name is a real message, not a keep-alive notice.
+     */
+    private fun isRunningPlaceholder(sbn: StatusBarNotification, isOngoing: Boolean, isCall: Boolean): Boolean {
+        if (!isOngoing || isCall) return false
+        val extras = sbn.notification.extras
+        val title = extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString()?.trim().orEmpty()
+        // A blank title is NOT this pattern: Maps deliberately blanks the title on the first frames
+        // of a journey while the rest of the notification is real turn data.
+        if (title.isBlank() || !title.equals(appLabel(sbn.packageName), ignoreCase = true)) return false
+
+        val hasSubText = !extras.getCharSequence(NotificationCompat.EXTRA_SUB_TEXT)?.toString()?.trim().isNullOrBlank()
+        val hasBigText = !extras.getCharSequence(NotificationCompat.EXTRA_BIG_TEXT)?.toString()?.trim().isNullOrBlank()
+        val hasCritical = !extras.getCharSequence("android.shortCriticalText")?.toString()?.trim().isNullOrBlank()
+        val hasLargeIcon = extras.get(NotificationCompat.EXTRA_LARGE_ICON) != null
+        val hasProgress = extras.getInt(NotificationCompat.EXTRA_PROGRESS_MAX, 0) > 0
+        val hasChrono = extras.getBoolean(NotificationCompat.EXTRA_SHOW_CHRONOMETER, false)
+        return !hasSubText && !hasBigText && !hasCritical && !hasLargeIcon && !hasProgress && !hasChrono
+    }
+
+    /** The user-visible name of [pkg], or the package name if it can't be resolved. */
+    private fun appLabel(pkg: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault(pkg)
+
+    /**
      * Whether [sbn] is an active turn-by-turn navigation notification, i.e. one [NavigationCard]
      * can build a driving card out of.
      *
-     * The category is the reliable signal and picks up Waze, Organic Maps, Sygic and the rest for
-     * free. The package check is the fallback for builds that don't set it — but it additionally
-     * demands real text, because Maps also keeps a bare ongoing "Maps is running" notification alive
-     * with nothing in it, and a driving card built from that is an empty card.
+     * The category is the reliable signal and picks up Organic Maps, Sygic and the rest for free.
+     * The package check is the fallback for builds that don't set it — but it additionally demands
+     * real text, because Maps also keeps a bare ongoing "Maps is running" notification alive with
+     * nothing in it, and a driving card built from that is an empty card.
      */
     private fun isNavigation(sbn: StatusBarNotification, isOngoing: Boolean): Boolean {
         if (!isOngoing) return false
@@ -466,11 +511,8 @@ class NotificationCastListener : NotificationListenerService() {
             val ai = packageManager.getApplicationInfo(sbn.packageName, 0)
             Icon.createWithResource(sbn.packageName, ai.icon)
         }.getOrNull()
-        val appLabel = runCatching {
-            packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
-        }.getOrDefault(sbn.packageName)
         val click = sbn.notification.contentIntent ?: fallbackClickIntent(applicationContext, sbn.packageName)
-        PaymentCard.post(applicationContext, id, appIcon, info.amount, info.merchant, appLabel, click)
+        PaymentCard.post(applicationContext, id, appIcon, info.amount, info.merchant, appLabel(sbn.packageName), click)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
