@@ -270,15 +270,13 @@ private fun recastAll(context: Context) {
     PlaygroundService.keepAlive(context)
     val listener = NotificationCastListener.instance
     if (listener == null) {
-        runCatching {
-            android.service.notification.NotificationListenerService.requestRebind(
-                android.content.ComponentName(context, NotificationCastListener::class.java),
-            )
+        val message = when (NotificationCastListener.forceRebind(context)) {
+            NotificationCastListener.RebindResult.NO_ACCESS ->
+                "Notification access isn't granted — turn it on in Settings, then tap again."
+            else ->
+                "Listener not connected — reconnecting now. Give it a few seconds, then tap again."
         }
-        android.widget.Toast.makeText(
-            context, "Listener not connected yet — grant notification access, reboot app, then tap again.",
-            android.widget.Toast.LENGTH_LONG,
-        ).show()
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
         return
     }
     val count = listener.recastAll()

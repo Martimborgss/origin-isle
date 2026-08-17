@@ -1,24 +1,22 @@
 package com.originisle.android.island
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import com.originisle.android.R
 import com.originisle.android.service.IconCache
-import com.originisle.android.service.KeepAliveAccessibilityService
 import com.originisle.android.ui.PREFS_NAME
 import java.util.concurrent.ConcurrentHashMap
 
@@ -56,6 +54,9 @@ class PlaygroundService : Service() {
 
         const val ORIGIN_CHANNEL_ID = "originisle_island_hi"
         const val FGS_ID = 9999
+
+        /** PendingIntent request code for the [onTaskRemoved] restart alarm. */
+        private const val RESTART_REQUEST = 7001
     }
 
     private lateinit var notificationManager: NotificationManager
@@ -97,18 +98,55 @@ class PlaygroundService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Swiping the task away on OriginOS kills the whole process — the notification listener with it.
+     * START_STICKY is not enough on its own there (the service simply never came back), so re-arm
+     * two ways: make sure the FGS is up, and leave an alarm behind that restarts this service a
+     * second later if the process dies anyway.
+     *
+     * The alarm survives the kill because a swipe is a plain process kill, not a force-stop —
+     * verified with `dumpsys package`, which still reports `stopped=false` afterwards. (A real
+     * force-stop sets that flag and cancels alarms, and nothing an app does can escape it.)
+     * [PendingIntent.getForegroundService] is what the alarm fires; starting an FGS from the
+     * background is allowed here because the app is on the battery-optimisation allowlist, which
+     * onboarding already asks for.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        runCatching { ensureForeground() }
+        runCatching {
+            val restart = PendingIntent.getForegroundService(
+                this,
+                RESTART_REQUEST,
+                Intent(this, PlaygroundService::class.java).setAction(ACTION_KEEPALIVE),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            getSystemService(AlarmManager::class.java)?.set(
+                AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 1000L, restart,
+            )
+        }
+    }
+
     private fun ensureForeground() {
         if (isForegroundActive) return
-        // If the keep-alive AccessibilityService is enabled, it anchors the process for us — so we
-        // DON'T start a foreground service, and skipping it removes the status-bar icon that OriginOS
-        // force-shows for any FGS.
+        // The FGS now starts UNCONDITIONALLY. It used to be skipped whenever the keep-alive
+        // AccessibilityService was enabled, on the theory that accessibility alone anchors the
+        // process — but that premise is wrong, and it was the reason casting died for good on
+        // swipe-away. Measured on an X200 Pro (OriginOS): swiping the task away kills the process,
+        // and `dumpsys accessibility` then reports
         //
-        // IMPORTANT: we only SKIP starting the FGS here; we must NEVER tear down an already-running
-        // FGS the instant accessibility connects. Doing that left the process with no anchor for a
-        // moment, OriginOS killed it, and the kill disconnected (disabled) the accessibility service.
-        // So the FGS just isn't (re)started once accessibility is on — the icon clears on the next
-        // process start, and the process always keeps an anchor.
-        if (isKeepAliveAccessibilityEnabled()) return
+        //     Enabled services:{{…/KeepAliveAccessibilityService}}
+        //     Crashed services:{{…/KeepAliveAccessibilityService}}
+        //
+        // i.e. AccessibilityManagerService sees the binding die, marks the service CRASHED, and
+        // never rebinds it. It stays "enabled" in Settings.Secure while being completely dead, so
+        // the process had no anchor at all, nothing restarted it, and only a reboot (which rebinds
+        // every enabled accessibility service from scratch) brought casting back.
+        //
+        // The status-bar icon this skip was avoiding is already handled a different way: CHANNEL_ID
+        // is created at IMPORTANCE_NONE (blocked), which suppresses the FGS notification outright —
+        // see createNotificationChannel. So running the FGS costs nothing visually and buys the one
+        // anchor the system actually honours across task removal.
         createNotificationChannel(CHANNEL_ID)
         val n = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Origin Isle")
@@ -435,15 +473,6 @@ class PlaygroundService : Service() {
             stopSelf()
         }
         if (hadScenes) mainHandler.postDelayed({ finish() }, 350L) else finish()
-    }
-
-    /** True when the user has enabled the keep-alive AccessibilityService (no FGS icon needed then). */
-    private fun isKeepAliveAccessibilityEnabled(): Boolean {
-        val flat = Settings.Secure.getString(
-            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
-        val target = ComponentName(this, KeepAliveAccessibilityService::class.java)
-        return flat.split(':').any { ComponentName.unflattenFromString(it) == target }
     }
 
     private fun createNotificationChannel(channelId: String) {

@@ -30,9 +30,22 @@
 
         <!-- Posts / updates / ends OriginIsland SuperX cards. Special-use FGS so it can
              keep re-posting a live card (e.g. a ticking football score). -->
+        <!--
+            stopWithTask=false + START_STICKY are what get casting back after the app is swiped off
+            recents. OriginOS kills the whole app on that swipe (a separate :island process does NOT
+            survive it either — measured), so the recovery can't come from staying alive; it comes
+            from the system RESTARTING this foreground service afterwards, which respawns the
+            process and rebinds the notification listener with it.
+
+            That restart is gated on vivo's "Associated startup" toggle, which controls whether the
+            system may start this app at all. With it off, nothing recovers — not START_STICKY, not
+            the onTaskRemoved alarm, not the accessibility service — and only a reboot fixes it.
+            Onboarding calls that out explicitly; see OnboardingScreen.
+        -->
         <service
             android:name=".island.PlaygroundService"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="OriginIsland live update service" />

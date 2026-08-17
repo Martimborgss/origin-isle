@@ -3,8 +3,10 @@ package com.originisle.android.service
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.media.session.MediaController
 import android.media.session.MediaSession
@@ -16,6 +18,7 @@ import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.originisle.android.cards.GenericCard
 import com.originisle.android.cards.MediaCard
 import com.originisle.android.cards.NavigationCard
@@ -43,6 +46,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class NotificationCastListener : NotificationListenerService() {
 
+    /** Outcome of [forceRebind], so callers can tell the user something truthful. */
+    enum class RebindResult { REBINDING, ALREADY_CONNECTED, NO_ACCESS, FAILED }
+
     companion object {
         /** The bound listener instance, or null if the service isn't connected. */
         @Volatile
@@ -54,8 +60,74 @@ class NotificationCastListener : NotificationListenerService() {
         @Volatile
         var lastEventAt: Long = 0L
 
+        /**
+         * Force the system to re-bind this listener after the process was killed (OriginOS kills it
+         * on swipe-away), and report whether a rebind could even be attempted.
+         *
+         * [NotificationListenerService.requestRebind] alone is NOT enough, and this is the whole
+         * reason the Reconnect button did nothing. It lands in `NotificationManagerService`
+         * -> `ManagedServices.setComponentState(component, userId, enabled = true)`, which starts
+         * with an early return when the requested state already matches the tracked one:
+         *
+         *     boolean previous = !mSnoozing...contains(component);
+         *     if (previous == enabled) return;
+         *
+         * A component is only in that "snoozing" set after an explicit [requestUnbind]. When the
+         * listener instead dies with a force-stopped process, it was never snoozed — so the system
+         * still believes it is bound, `previous == enabled` holds, and `requestRebind` returns
+         * having done literally nothing. No amount of tapping the button changes that; only a
+         * reboot (which rebuilds the bindings from scratch) did.
+         *
+         * Toggling the component's enabled state is what actually moves the system: each
+         * `setComponentEnabledSetting` fires `ACTION_PACKAGE_CHANGED`, whose receiver in
+         * `NotificationManagerService` calls `mListeners.onPackagesChanged(removing = false, …)`
+         * -> `rebindServices()`, and that rebinds every approved-but-unbound listener. The grant
+         * itself lives in `Settings.Secure.enabled_notification_listeners` keyed by component name
+         * and is untouched by this, so access is not lost. `DONT_KILL_APP` keeps our own process
+         * (and the island's foreground service) up across the toggle.
+         */
+        fun forceRebind(context: Context): RebindResult {
+            val component = ComponentName(context.applicationContext, NotificationCastListener::class.java)
+            if (!NotificationManagerCompat.getEnabledListenerPackages(context)
+                    .contains(context.packageName)
+            ) {
+                return RebindResult.NO_ACCESS
+            }
+            if (instance != null) return RebindResult.ALREADY_CONNECTED
+            // The rebind is asynchronous (it waits on a package broadcast), so a burst of callers —
+            // onResume firing repeatedly while the listener is still down — must not keep tearing
+            // down a binding that is already on its way up.
+            val now = System.currentTimeMillis()
+            if (now - lastRebindAt < REBIND_THROTTLE_MS) return RebindResult.REBINDING
+            lastRebindAt = now
+
+            val pm = context.applicationContext.packageManager
+            val toggled = runCatching {
+                pm.setComponentEnabledSetting(
+                    component,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+                pm.setComponentEnabledSetting(
+                    component,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }.isSuccess
+            // Belt and braces: after the toggle the component IS considered unbound, so this call is
+            // no longer a no-op and can shortcut the wait for the package broadcast to land.
+            runCatching { requestRebind(component) }
+            return if (toggled) RebindResult.REBINDING else RebindResult.FAILED
+        }
+
         private const val PREFS = "experimental_prefs"
         private const val TAG = "NotificationCast"
+
+        /** Minimum gap between component toggles in [forceRebind]. */
+        private const val REBIND_THROTTLE_MS = 10_000L
+
+        @Volatile
+        private var lastRebindAt = 0L
 
         /** Framework/system packages whose notifications are noise on the island. */
         private val SYSTEM_PKGS = setOf(
@@ -195,6 +267,11 @@ class NotificationCastListener : NotificationListenerService() {
         if (instance === this) instance = null
         connectedAt = 0L
         pollHandler.removeCallbacks(pollRunnable)
+        // A system-initiated unbind DOES leave the component snoozed, so here — unlike from the
+        // Reconnect button — a plain requestRebind is the documented, working way back (see
+        // [forceRebind] for why it is a no-op in the process-kill case). Self-heals the transient
+        // disconnects without the user having to open the app at all.
+        runCatching { requestRebind(ComponentName(this, NotificationCastListener::class.java)) }
     }
 
     /**

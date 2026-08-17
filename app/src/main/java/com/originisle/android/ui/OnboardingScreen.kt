@@ -40,6 +40,11 @@ import androidx.lifecycle.LifecycleEventObserver
  * First-run gate: walks through every authorization the app needs before letting the user into the
  * main tabs. Only notification access is mandatory to continue; the rest are strongly recommended
  * (battery, keep-alive, auto-start) and can be granted later from the Cast tab's "Redo setup" button.
+ *
+ * The auto-start row matters more than its "recommended" status suggests: OriginOS's "Associated
+ * startup" toggle governs whether the SYSTEM is allowed to start this app. With it off, nothing can
+ * bring casting back after the app is swiped off recents — not START_STICKY, not the restart alarm,
+ * not the accessibility service — and only a reboot recovers. Measured on an X200 Pro.
  * Every row re-checks its status when the user returns from Settings (via [Lifecycle.Event.ON_RESUME]).
  */
 @Composable
@@ -123,8 +128,11 @@ fun OnboardingScreen(context: Context, prefs: SharedPreferences, onDone: () -> U
             }
             item {
                 OnboardingRow(
-                    title = "OriginOS auto-start",
-                    description = "vivo can't be checked automatically.",
+                    title = "Auto-start + Associated startup",
+                    description = "Turn BOTH on, especially \"Associated startup\". Without it OriginOS " +
+                        "forbids the system from restarting Origin Isle, so closing the app from recents " +
+                        "kills casting until you reboot the phone. vivo doesn't let apps check this, so " +
+                        "it's on you to confirm it's on.",
                     granted = autoStartAck,
                     mandatory = false,
                 ) {
